@@ -70,15 +70,13 @@ public class TeradataJdbcConnectorTest
     {
         database.dropTestDatabaseIfExists();
     }
-
     @Override
-    protected OptionalInt maxSchemaNameLength()
-    {
-        return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT - 1);
+    protected OptionalInt maxSchemaNameLength() {
+        return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
-
     protected void verifySchemaNameLengthFailurePermissible(Throwable e)
     {
-        assertThat(e).hasMessage(format("Schema name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
+        assertThat(e).hasMessage(format("Schema name must be shorter than or equal to '%s' characters but got '%s'",TERADATA_OBJECT_NAME_LIMIT,TERADATA_OBJECT_NAME_LIMIT + 1));
     }
+
 }

@@ -16,7 +16,6 @@ import io.trino.plugin.jdbc.ColumnMapping;
 import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
-import io.trino.plugin.jdbc.JdbcSortItem;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
 import io.trino.plugin.jdbc.LongReadFunction;
@@ -34,6 +33,9 @@ import io.trino.plugin.jdbc.expression.RewriteIn;
 import io.trino.plugin.jdbc.expression.RewriteLikeEscapeWithCaseSensitivity;
 import io.trino.plugin.jdbc.expression.RewriteLikeWithCaseSensitivity;
 import io.trino.plugin.jdbc.logging.RemoteQueryModifier;
+import io.trino.spi.ErrorCode;
+import io.trino.spi.ErrorCodeSupplier;
+import io.trino.spi.StandardErrorCode;
 import io.trino.spi.TrinoException;
 import io.trino.spi.connector.ColumnHandle;
 import io.trino.spi.connector.ConnectorSession;
@@ -52,13 +54,7 @@ import io.trino.spi.type.VarcharType;
 import org.weakref.jmx.$internal.guava.collect.ImmutableMap;
 import org.weakref.jmx.$internal.guava.collect.ImmutableSet;
 
-import java.sql.Connection;
-import java.sql.DatabaseMetaData;
-import java.sql.PreparedStatement;
-import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
+import java.sql.*;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -105,6 +101,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.varcharColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varcharWriteFunction;
 import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsupportedTypeHandling;
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
+import static io.trino.plugin.teradata.util.TeradataConstants.TERADATA_OBJECT_NAME_LIMIT;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
 import static io.trino.spi.type.BooleanType.BOOLEAN;
@@ -133,7 +130,6 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.joining;
 
 /**
  * TeradataClient is a JDBC client implementation for the Teradata database.
@@ -157,8 +153,11 @@ import static java.util.stream.Collectors.joining;
 public class TeradataClient
         extends BaseJdbcClient
 {
+
     private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
     private ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
+
+
 
     /**
      * Constructs a new TeradataClient instance.
@@ -366,15 +365,8 @@ public class TeradataClient
         });
     }
 
-    private static boolean isCharacterType(JdbcColumnHandle column)
-    {
-        Type columnType = column.getColumnType();
-        return columnType instanceof CharType || columnType instanceof VarcharType;
-    }
-
     @Override
-    protected Optional<BiFunction<String, Long, String>> limitFunction()
-    {
+    protected Optional<BiFunction<String, Long, String>> limitFunction() {
         return Optional.of((sql, limit) -> format("SELECT TOP %s * FROM (%s) o", limit, sql));
     }
 
@@ -384,56 +376,12 @@ public class TeradataClient
         return true;
     }
 
-    @Override
-    public boolean isTopNGuaranteed(ConnectorSession session)
-    {
-        return true;
-    }
+    protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName) {
 
-    @Override
-    public boolean supportsTopN(ConnectorSession session, JdbcTableHandle handle, List<JdbcSortItem> sortOrder)
-    {
-        // Teradata supports TOP N with ORDER BY for all data types
-        return true;
-    }
-
-    @Override
-    protected Optional<TopNFunction> topNFunction()
-    {
-        return Optional.of((query, sortItems, limit) -> {
-            String orderBy = sortItems.stream()
-                    .map(sortItem -> {
-                        String ordering = sortItem.sortOrder().isAscending() ? "ASC" : "DESC";
-                        String columnName = quoted(sortItem.column().getColumnName());
-
-                        // Add case sensitivity handling for character types
-                        if (isCharacterType(sortItem.column())) {
-                            boolean caseSensitive = sortItem.column().getJdbcTypeHandle()
-                                    .caseSensitivity()
-                                    .map(sensitivity -> sensitivity == CaseSensitivity.CASE_SENSITIVE)
-                                    .orElse(false);
-                            String caseSensitivity = caseSensitive ? "(CS)" : "(NOT CS)";
-                            return format("%s %s %s", columnName, caseSensitivity, ordering);
-                        }
-
-                        return format("%s %s", columnName, ordering);
-                    })
-                    .collect(joining(", "));
-
-            // Remove schema qualification from subquery
-            String baseQuery = query.replaceAll("\\w+\\.\\w+\\.", "");
-            return format("SELECT TOP %d * FROM (%s) AS t ORDER BY %s", limit, baseQuery, orderBy);
-        });
-    }
-
-    protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName)
-            throws SQLException
-    {
         execute(session, format(
                 "CREATE DATABASE %s AS PERMANENT = 60000000, SPOOL = 120000000",
                 quoted(remoteSchemaName)));
     }
-
     @Override
     protected void verifySchemaName(DatabaseMetaData databaseMetadata, String schemaName)
             throws SQLException
@@ -447,8 +395,8 @@ public class TeradataClient
     protected void dropSchema(ConnectorSession session, Connection connection, String remoteSchemaName, boolean cascade)
             throws SQLException
     {
-        String deleteSchema = "DELETE DATABASE " + quoted(remoteSchemaName);
-        execute(session, connection, deleteSchema);
+//        String deleteSchema = "DELETE DATABASE " + quoted(remoteSchemaName);
+//        execute(session, connection, deleteSchema);
         String dropSchema = "DROP DATABASE " + quoted(remoteSchemaName);
         execute(session, connection, dropSchema);
     }
@@ -466,6 +414,7 @@ public class TeradataClient
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support delete operations");
     }
+
 
     @Override
     public void truncateTable(ConnectorSession session, JdbcTableHandle handle)
