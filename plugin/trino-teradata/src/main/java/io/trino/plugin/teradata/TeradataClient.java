@@ -417,14 +417,11 @@ public class TeradataClient
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support delete operations");
     }
-
-
     @Override
     public void truncateTable(ConnectorSession session, JdbcTableHandle handle)
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support truncate operations");
     }
-
     @Override
     public void dropColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column)
     {
