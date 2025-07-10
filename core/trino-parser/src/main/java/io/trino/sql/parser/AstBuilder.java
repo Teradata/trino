@@ -1005,7 +1005,7 @@ class AstBuilder
                 (Identifier) visit(context.branch),
                 visitIfPresent(context.from, Identifier.class),
                 toSaveMode(context.REPLACE(), context.EXISTS()),
-                properties);
+                properties)
     }
 
     @Override
