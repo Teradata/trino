@@ -49,7 +49,9 @@ public class TeradataJdbcConnectorTest
                  SUPPORTS_CREATE_TABLE_WITH_COLUMN_COMMENT,
                  SUPPORTS_RENAME_SCHEMA,
                  SUPPORTS_SET_COLUMN_TYPE,
-                 SUPPORTS_ROW_LEVEL_DELETE -> false;
+                 SUPPORTS_ROW_LEVEL_DELETE,
+                 SUPPORTS_DROP_SCHEMA_CASCADE,
+                 SUPPORTS_NATIVE_QUERY -> false;
             case SUPPORTS_CREATE_SCHEMA,
                  SUPPORTS_CREATE_TABLE,
                  SUPPORTS_TOPN_PUSHDOWN,
@@ -130,6 +132,23 @@ public class TeradataJdbcConnectorTest
     public void testAddColumn()
     {
         Assumptions.abort("Skipping as connector does not support column level write operations");
+    }
+
+    @Test
+    public void testPredicate()
+    {
+        this.assertQuery("""
+                    SELECT TOP 10 *
+                      FROM (
+                        SELECT orderkey+1 AS a FROM orders WHERE orderstatus = 'F'
+                        UNION ALL\s
+                        SELECT orderkey AS a FROM orders WHERE MOD(orderkey, 2) = 0
+                        UNION ALL\s
+                        SELECT orderkey+custkey AS a FROM orders
+                      ) AS unioned
+                      WHERE a < 20 OR a > 100
+                      ORDER BY a;
+                """);
     }
 
     @Test
