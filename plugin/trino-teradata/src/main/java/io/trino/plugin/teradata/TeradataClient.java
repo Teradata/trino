@@ -75,6 +75,7 @@ import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -142,7 +143,6 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.Math.floorDiv;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
-import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
 
 /**
@@ -522,13 +522,15 @@ public class TeradataClient
                 modifiedQuery = query.replaceFirst("(?i)SELECT\\s+(.*?)\\s+FROM", "SELECT " + allColumns + " FROM");
             }
 
-            // Build ORDER BY clause
             String orderBy = sortItems.stream()
                     .map(sortItem -> {
-                        String ordering = sortItem.sortOrder().isAscending() ? "ASC" : "DESC";
-                        return quoted(sortItem.column().getColumnName()) + " " + ordering;
+                        String columnName = quoted(sortItem.column().getColumnName());
+                        boolean asc = sortItem.sortOrder().isAscending();
+                        String direction = asc ? "ASC" : "DESC";
+                        String nullsHandling = sortItem.sortOrder().isNullsFirst() ? "NULLS FIRST" : "NULLS LAST";
+                        return columnName + " " + direction + " " + nullsHandling;
                     })
-                    .collect(joining(", "));
+                    .collect(Collectors.joining(", "));
 
             // Remove schema qualification (e.g. trino.nation → nation)
             String baseQuery = modifiedQuery.replaceAll("\\w+\\.\\w+\\.", "");
