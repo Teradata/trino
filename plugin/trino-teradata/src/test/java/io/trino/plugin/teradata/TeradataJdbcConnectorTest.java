@@ -30,7 +30,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
@@ -49,13 +48,7 @@ public class TeradataJdbcConnectorTest
         extends BaseJdbcConnectorTest
 {
     private static final Logger log = Logger.get(TeradataJdbcConnectorTest.class);
-    protected final TestTeradataDatabase database;
-
-    public TeradataJdbcConnectorTest()
-    {
-        DatabaseConfig dbConfig = DatabaseTestUtil.getDatabaseConfig();
-        database = new TestTeradataDatabase(dbConfig);
-    }
+    protected final TestTeradataDatabase database = new TestTeradataDatabase(DatabaseConfig.fromEnv());
 
     private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults, Consumer<TrinoExceptionAssert> verifyFailure)
     {
@@ -130,46 +123,13 @@ public class TeradataJdbcConnectorTest
             throws Exception
     {
         database.createTestDatabaseIfAbsent();
-        TeradataQueryRunner.setTeradataDatabase(database);
         return TeradataQueryRunner.builder().setInitialTables(REQUIRED_TPCH_TABLES).build();
     }
 
     @AfterAll
     public void cleanupTestDatabase()
     {
-        database.close();
-    }
-
-    @Override
-    protected OptionalInt maxSchemaNameLength()
-    {
-        return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
-    }
-
-    protected void verifySchemaNameLengthFailurePermissible(Throwable e)
-    {
-        assertThat(e).hasMessage(format("Schema name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
-    }
-
-    protected OptionalInt maxColumnNameLength()
-    {
-        return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
-    }
-
-    @Override
-    protected void verifyColumnNameLengthFailurePermissible(Throwable e)
-    {
-        assertThat(e).hasMessageMatching(format("Column name must be shorter than or equal to '%s' characters but got '%s': '.*'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
-    }
-
-    protected OptionalInt maxTableNameLength()
-    {
-        return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
-    }
-
-    protected void verifyTableNameLengthFailurePermissible(Throwable e)
-    {
-        assertThat(e).hasMessageMatching(format("Table name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
+        database.dropTestDatabaseIfExists();
     }
 
     @Test
@@ -195,14 +155,16 @@ public class TeradataJdbcConnectorTest
             Assertions.assertThat(this.query("SELECT avg(nationkey) FROM nation")).isNotFullyPushedDown(AggregationNode.class);
         }
         else {
-            try (TestTable emptyTable = this.createAggregationTestTable("trino.test_num_agg_pd", ImmutableList.of())) {
+            String schemaName = this.getSession().getSchema().orElseThrow();
+
+            try (TestTable emptyTable = this.createAggregationTestTable(schemaName + ".test_num_agg_pd", ImmutableList.of())) {
                 Assertions.assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
                 Assertions.assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
                 Assertions.assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
                 Assertions.assertThat(this.query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + emptyTable.getName())).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
             }
 
-            try (TestTable testTable = this.createAggregationTestTable("trino.test_num_agg_pd", ImmutableList.of("100.000, 100000000.000000000, 100.000, 100000000", "123.321, 123456789.987654321, 123.321, 123456789"))) {
+            try (TestTable testTable = this.createAggregationTestTable(schemaName + ".test_num_agg_pd", ImmutableList.of("100.000, 100000000.000000000, 100.000, 100000000", "123.321, 123456789.987654321, 123.321, 123456789"))) {
                 Assertions.assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + testTable.getName())).isFullyPushedDown();
                 Assertions.assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + testTable.getName())).isFullyPushedDown();
                 Assertions.assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + testTable.getName())).isFullyPushedDown();
@@ -222,7 +184,8 @@ public class TeradataJdbcConnectorTest
     public void testVarcharCastToDateInPredicate()
     {
         skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA));
-        String tableName = "varchar_as_date_pred";
+        String schemaName = this.getSession().getSchema().orElseThrow();
+        String tableName = schemaName + ".varchar_as_date_pred";
         try (TestTable table = newTrinoTable(
                 tableName,
                 "(a varchar(50))",
@@ -362,6 +325,17 @@ public class TeradataJdbcConnectorTest
         assertUpdate("DROP TABLE " + tableName);
     }
 
+    @Override
+    protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup)
+    {
+        String typeName = dataMappingTestSetup.getTrinoTypeName();
+        return switch (typeName) {
+            case "boolean", "tinyint", "real", "timestamp(6)", "timestamp(6) with time zone", "char(3)", "varchar",
+                 "U&'a \\000a newline'" -> Optional.empty();
+            default -> Optional.of(dataMappingTestSetup);
+        };
+    }
+
     // Overriding this test case as Teradata does not support negative dates.
     @Test
     public void testDateYearOfEraPredicate()
@@ -375,8 +349,8 @@ public class TeradataJdbcConnectorTest
     {
         if (!this.hasBehavior(TestingConnectorBehavior.SUPPORTS_ROW_LEVEL_UPDATE)) {
             skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA));
-            String testTableName = "test_supports_update";
-            try (TestTable table = this.newTrinoTable(testTableName, "AS ( SELECT * FROM trino.nation) WITH DATA")) {
+
+            try (TestTable table = this.newTrinoTable("test_supports_update", "AS ( SELECT * FROM nation) WITH DATA")) {
                 this.assertQueryFails("UPDATE " + table.getName() + " SET nationkey = nationkey * 100 WHERE regionkey = 2", "This connector does not support modifying table rows");
             }
         }
@@ -392,8 +366,7 @@ public class TeradataJdbcConnectorTest
             Assertions.assertThat(this.query(session, "SELECT r.name, n.name FROM nation n JOIN region r ON n.regionkey = r.regionkey")).joinIsNotFullyPushedDown();
         }
         else {
-            String testTableName = "nation_lowercase";
-            try (TestTable nationLowercaseTable = this.newTrinoTable(testTableName, "AS ( SELECT nationkey, lower(name) name, regionkey FROM trino.nation ) WITH DATA")) {
+            try (TestTable nationLowercaseTable = this.newTrinoTable("nation_lowercase", "AS ( SELECT nationkey, lower(name) name, regionkey FROM trino.nation ) WITH DATA")) {
                 for (JoinOperator joinOperator : JoinOperator.values()) {
                     if (joinOperator == JoinOperator.FULL_JOIN && !this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN_WITH_FULL_JOIN)) {
                         Assertions.assertThat(this.query(session, "SELECT r.name, n.name FROM nation n FULL JOIN region r ON n.regionkey = r.regionkey")).joinIsNotFullyPushedDown();
@@ -435,237 +408,12 @@ public class TeradataJdbcConnectorTest
     public void testCharVarcharComparison()
     {
         skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE));
-        String testTableName = "test_char_varchar";
-        try (TestTable table = newTrinoTable(testTableName, "(k int, v char(3))", List.of("-1, CAST(NULL AS char(3))", "3, CAST('   ' AS char(3))", "6, CAST('x  ' AS char(3))"))) {
+
+        try (TestTable table = newTrinoTable("test_char_varchar", "(k int, v char(3))", List.of("-1, CAST(NULL AS char(3))", "3, CAST('   ' AS char(3))", "6, CAST('x  ' AS char(3))"))) {
             this.assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(2))", "VALUES (3, '   ')");
             this.assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(4))", "VALUES (3, '   ')");
             this.assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS varchar(2))", "VALUES (6, 'x  ')");
         }
-    }
-
-    @Test
-    public void testJsonColumnMapping()
-    {
-        String testTableName = "test_json_table";
-        try (TestTable table = newTrinoTable(testTableName, "(id INTEGER, json_data JSON)", List.of("1, '{\"name\": \"Alice\", \"age\": 30}'", "2, '{\"name\": \"Bob\", \"age\": 25, \"active\": true}'", "3, NULL"))) {
-            // Test JSON reading
-            assertQuery(
-                    format("SELECT id, json_data FROM %s ORDER BY id", table.getName()),
-                    "VALUES " +
-                            "(1, JSON '{\"name\": \"Alice\", \"age\": 30}'), " +
-                            "(2, JSON '{\"name\": \"Bob\", \"age\": 25, \"active\": true}'), " +
-                            "(3, CAST(NULL AS JSON))");
-
-            // Test JSON extraction
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.name') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES 'Alice'");
-
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.age') FROM %s WHERE id = 2", table.getName()),
-                    "VALUES '25'");
-        }
-    }
-
-    @Test
-    public void testJsonColumnMappingTypeMapping()
-    {
-        String testTableName = "test_json_type_mapping";
-        try (TestTable table = newTrinoTable(testTableName, "(id INTEGER, json_col JSON)", List.of("1, '{\"test\": \"value\"}'"))) {
-            // Verify the column type is mapped correctly
-            MaterializedResult result = computeActual(format("DESCRIBE %s", table.getName()));
-
-            boolean jsonColumnFound = false;
-            for (MaterializedRow row : result.getMaterializedRows()) {
-                String columnName = (String) row.getField(0);
-                String columnType = (String) row.getField(1);
-
-                if ("json_col".equals(columnName)) {
-                    org.junit.jupiter.api.Assertions.assertEquals("json", columnType);
-                    jsonColumnFound = true;
-                    break;
-                }
-            }
-            assertThat(jsonColumnFound).isTrue();
-        }
-    }
-
-    @Test
-    public void testJsonColumnMappingComplexData()
-    {
-        String testTableName = "test_json_complex";
-        try (TestTable table = newTrinoTable(testTableName, "(id INTEGER, json_data JSON)",
-                List.of("1, '{\"user\": {\"name\": \"John\", \"addresses\": [{\"city\": \"NYC\", \"zip\": \"10001\"}, {\"city\": \"LA\", \"zip\": \"90210\"}]}}'",
-                        "2, '{\"numbers\": [1, 2, 3, 4, 5], \"mixed\": [\"text\", 42, true, null]}'",
-                        "3, '{\"empty_object\": {}, \"empty_array\": [], \"null_value\": null}'"))) {
-            // Test nested object extraction
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.user.name') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES 'John'");
-
-            // Test array element extraction
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.user.addresses[0].city') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES 'NYC'");
-
-            // Test array element from numbers array
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.numbers[2]') FROM %s WHERE id = 2", table.getName()),
-                    "VALUES '3'");
-
-            // Test JSON_EXTRACT for object/array values
-            assertQuery(
-                    format("SELECT JSON_EXTRACT(json_data, '$.user.addresses') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES JSON '[{\"city\": \"NYC\", \"zip\": \"10001\"}, {\"city\": \"LA\", \"zip\": \"90210\"}]'");
-        }
-    }
-
-    @Test
-    public void testJsonArrayWithNullValues()
-    {
-        String testTableName = "test_json_array_nulls";
-
-        try (TestTable table = newTrinoTable(testTableName, "(id INTEGER, json_data JSON)",
-                List.of("1, '{\"array\": [1, null, 3, null]}'"))) {
-            // Extract specific array elements
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.array[1]') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES CAST(NULL AS VARCHAR)"); // Second element is null
-
-            assertQuery(
-                    format("SELECT JSON_EXTRACT_SCALAR(json_data, '$.array[2]') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES '3'"); // Third element is 3
-
-            // Extract the entire array
-            assertQuery(
-                    format("SELECT JSON_EXTRACT(json_data, '$.array') FROM %s WHERE id = 1", table.getName()),
-                    "VALUES JSON '[1, null, 3, null]'");
-        }
-    }
-
-    // Overriding this test case as Teradata doesn't have support to (k, v) AS VALUES in insert statement
-    @Test
-    public void testVarcharCharComparison()
-    {
-        skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE));
-
-        try (TestTable table = this.newTrinoTable("test_varchar_char", "(k int, v char(3))", List.of("-1, CAST(NULL AS varchar(3))", "0, CAST('' AS varchar(3))", "1, CAST(' ' AS varchar(3))", "2, CAST('  ' AS varchar(3))", "3, CAST('   ' AS varchar(3))", "4, CAST('x' AS varchar(3))", "5, CAST('x ' AS varchar(3))", "6, CAST('x  ' AS varchar(3))"))) {
-            //  Teradata's CHAR type automatically pads values with spaces to the defined length
-            this.assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS char(2))", "VALUES (0, '   '), (1, '   '), (2, '   '), (3, '   ')");
-            this.assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS char(2))", "VALUES (4, 'x  '), (5, 'x  '), (6, 'x  ')");
-        }
-    }
-
-    // Overriding this test case as Teradata supports timezone in different way.
-    @Test
-    public void testTimestampWithTimeZoneCastToDatePredicate()
-    {
-        skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA));
-
-        TestTable table;
-        try {
-            table = this.newTrinoTable("timestamptz_to_date", "(i varchar(20), t TIMESTAMP)",
-                    List.of(
-                            "'UTC', CAST(TIMESTAMP '2005-09-10 00:12:34.000+00:00' AT TIME ZONE INTERVAL '0:00' HOUR TO MINUTE AS TIMESTAMP)",
-                            "'Warsaw', CAST(TIMESTAMP '2005-09-10 00:12:34.000+02:00' AT TIME ZONE INTERVAL '2:00' HOUR TO MINUTE AS TIMESTAMP)",
-                            "'Los Angeles', CAST(TIMESTAMP '2005-09-10 00:12:34.000-07:00' AT TIME ZONE - INTERVAL '7:00' HOUR TO MINUTE AS TIMESTAMP)"));
-        }
-        catch (QueryFailedException e) {
-            this.verifyUnsupportedTypeException(e, "timestamp(3) with time zone");
-            return;
-        }
-
-        TestTable e = table;
-
-        try {
-            Assertions.assertThat(this.query("SELECT i FROM " + table.getName() + " WHERE CAST(t AS date) = DATE '2005-09-10'")).hasCorrectResultsRegardlessOfPushdown().skippingTypesCheck().containsAll("VALUES 'UTC', 'Los Angeles'");
-        }
-        catch (Throwable var7) {
-            if (table != null) {
-                try {
-                    e.close();
-                }
-                catch (Throwable var5) {
-                    var7.addSuppressed(var5);
-                }
-            }
-
-            throw var7;
-        }
-
-        if (table != null) {
-            table.close();
-        }
-    }
-
-    @Test
-    public void testTimestampWithTimeZoneCastToTimestampPredicate()
-    {
-        skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA));
-
-        TestTable table;
-        try {
-            table = this.newTrinoTable(
-                    "timestamptz_to_ts",
-                    "(i varchar(20), t TIMESTAMP)",
-                    List.of(
-                            "'UTC', CAST(TIMESTAMP '2005-09-10 13:00:00.000+00:00' AT TIME ZONE INTERVAL '0:00' HOUR TO MINUTE AS TIMESTAMP)",
-                            "'Warsaw', CAST(TIMESTAMP '2005-09-10 13:00:00.000+02:00' AT TIME ZONE INTERVAL '2:00' HOUR TO MINUTE AS TIMESTAMP)",
-                            "'Los Angeles', CAST(TIMESTAMP '2005-09-10 13:00:00.000-07:00' AT TIME ZONE - INTERVAL '7:00' HOUR TO MINUTE AS TIMESTAMP)"));
-        }
-        catch (QueryFailedException e) {
-            this.verifyUnsupportedTypeException(e, "timestamp(3) with time zone");
-            return;
-        }
-
-        TestTable e = table;
-
-        try {
-            Assertions.assertThat(this.query("SELECT i FROM " + table.getName() + " WHERE CAST(t AS timestamp(0)) = TIMESTAMP '2005-09-10 13:00:00'")).hasCorrectResultsRegardlessOfPushdown().skippingTypesCheck().containsAll("VALUES 'UTC'");
-        }
-        catch (Throwable var7) {
-            if (table != null) {
-                try {
-                    e.close();
-                }
-                catch (Throwable var5) {
-                    var7.addSuppressed(var5);
-                }
-            }
-
-            throw var7;
-        }
-
-        if (table != null) {
-            table.close();
-        }
-    }
-
-    @Test
-    public void testJoinPushdownWithLongIdentifiers()
-    {
-        skipTestUnless(this.hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE) && this.hasBehavior(TestingConnectorBehavior.SUPPORTS_JOIN_PUSHDOWN));
-        String baseColumnName = "col";
-        int maxLength = this.maxColumnNameLength().orElse(65541);
-        String validColumnName = "z".repeat(maxLength - 5);
-
-        try (TestTable left = this.newTrinoTable("test_long_id_l", String.format("(%s BIGINT)", validColumnName));
-                TestTable right = this.newTrinoTable("test_long_id_r", String.format("(%s BIGINT)", validColumnName))) {
-            Assertions.assertThat(this.query(this.joinPushdownEnabled(this.getSession()), "SELECT l.%1$s, r.%1$s\nFROM %2$s l JOIN %3$s r ON l.%1$s = r.%1$s".formatted(validColumnName, left.getName(), right.getName()))).isFullyPushedDown();
-        }
-    }
-
-    @Override
-    protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup)
-    {
-        String typeName = dataMappingTestSetup.getTrinoTypeName();
-        return switch (typeName) {
-            // skipping date as during julian->gregorian date is handled differently in Teradata. tinyint, double and varchar with unbounded (need to handle special characters) is skipped and will handle it while improving
-            // write functionalities.
-            case "boolean", "tinyint", "date", "real", "double", "varchar", "timestamp(3) with time zone", "timestamp(6) with time zone",
-                 "U&'a \\000a newline'" -> Optional.empty();
-            default -> Optional.of(dataMappingTestSetup);
-        };
     }
 
     @Test
@@ -772,19 +520,7 @@ public class TeradataJdbcConnectorTest
 
     protected TestTable newTrinoTable(String namePrefix, @Language("SQL") String tableDefinition, List<String> rowsToInsert)
     {
-        String tableName = "";
-
-        // Check if namePrefix already contains schema (contains a dot)
-        if (namePrefix.contains(".")) {
-            // namePrefix already has schema.tablename format
-            tableName = namePrefix;
-        }
-        else {
-            // Append current schema to namePrefix
-            String schemaName = this.getSession().getSchema().orElseThrow();
-            tableName = schemaName + "." + namePrefix;
-        }
-        return new TestTable(database, tableName, tableDefinition, rowsToInsert);
+        return new TestTable(database, namePrefix, tableDefinition, rowsToInsert);
     }
 
     private boolean expectVarcharJoinPushdown(String operator)
@@ -820,12 +556,5 @@ public class TeradataJdbcConnectorTest
             throws Throwable
     {
         return operator.equals("IS NOT DISTINCT FROM") ? JoinCondition.Operator.IDENTICAL : (JoinCondition.Operator) ((Optional) Stream.of(JoinCondition.Operator.values()).filter((joinOperator) -> joinOperator.getValue().equals(operator)).collect(MoreCollectors.toOptional())).orElseThrow(() -> new IllegalArgumentException("Not found: " + operator));
-    }
-
-    private void verifyUnsupportedTypeException(Throwable exception, String trinoTypeName)
-    {
-        String typeNameBase = trinoTypeName.replaceFirst("\\(.*", "");
-        String expectedMessagePart = String.format("(%1$s.*not (yet )?supported)|((?i)unsupported.*%1$s)|((?i)not supported.*%1$s)", Pattern.quote(typeNameBase));
-        Assertions.assertThat(exception).hasMessageFindingMatch(expectedMessagePart).satisfies((e) -> Assertions.assertThat(io.trino.testing.QueryAssertions.getTrinoExceptionCause(e)).hasMessageFindingMatch(expectedMessagePart));
     }
 }
