@@ -933,7 +933,7 @@ public class TeradataJdbcConnectorTest
 
 
     @Test
-    public void testArrayColumnMapping()
+    public void testArrayAsVarcharColumnMapping()
     {
         String testTableName = "test_array_table";
 
@@ -965,7 +965,7 @@ public class TeradataJdbcConnectorTest
     }
 
     @Test
-    public void testArrayColumnMappingWithNullElements()
+    public void testArrayAsVarcharColumnMappingWithNullElements()
     {
         String testTableName = "test_array_nulls";
 
