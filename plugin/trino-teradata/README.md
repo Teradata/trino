@@ -1,42 +1,31 @@
 # Teradata Connector Developer Notes
+The Teradata connector module has both unit tests and integration tests. 
+The integration tests require access to a Teradata ClearScape environment.
+You can follow the steps below to be able to run the integration tests locally.
 
-The Teradata connector module has both unit tests and integration tests.
-The integration tests require access to a [Teradata ClearScape Analytics™ Experience](https://clearscape.teradata.com/sign-in).
-You can follow the steps below to run the integration tests locally.
 
-## Prerequisites
+## Requirements
+* Access to a Teradata ClearScape account. You can create one by visiting the [Teradata ClearScape portal](https://clearscape.teradata.com/sign-in).
+* Valid Teradata ClearScape API credentials (token and environment name).
 
-#### 1. Create a new ClearScape Analytics™ Experience account
-
-If you don't already have one, sign up at:
-
-[Teradata ClearScape Analytics™ Experience](https://www.teradata.com/getting-started/demos/clearscape-analytics)
-
-#### 2. Login
-
-Sign in with your new account at:
-
-[ClearScape Analytics™ Experience Login](https://clearscape.teradata.com/sign-in)
-
-#### 3. Collect the API Token
-
-Use the **Copy API Token** button in the UI to retrieve your token.
-
-#### 4. Define the following environment variables
-
-⚠️ **Note:** The Teradata database password must be **at least 8 characters long**.
-
-```
-export CLEARSCAPE_TOKEN=<API Token>
-export CLEARSCAPE_PASSWORD=<Password for Teradata database (min 8 chars)>
-```
-
-## Running Integration Tests
-
-Once the environment variables are set, run the integration tests with:
-
-⚠️ **Note:** Run the following command from the Trino parent directory.
-
-  ```
- ./mvnw clean install -pl :trino-teradata
-```
+## Steps
+* Enable ClearScape access in your Teradata account.
+* Build the project by following the instructions in the main documentation.
+* Obtain ClearScape credentials:
+    * Log into the ClearScape portal
+    * Copy the API token of your account
+    * Note your environment name or create a new environment
+* Configure test properties: Set the following VM options in your IntelliJ "Run Configuration":
+    * teradata.clearscape.token=your-api-token
+    * teradata.clearscape.password=your-environment-password
+* Environment validation:
+    * The connector automatically validates that the ClearScape URL points to [api.clearscape.teradata.com](https://api.clearscape.teradata.com/api-docs/?_gl=1*z35r6m*_gcl_au*MTk4NDg2NzY5NC4xNzUwOTQwNjMx*_ga*MTE3NTQ5MzU3OS4xNzUwNDk4Nzk3*_ga_7PE2TMW3FE*czE3NTI4MTkzMjEkbzE4JGcwJHQxNzUyODE5MzY5JGoxMiRsMCRoMA..)
+    * Only HTTPS/HTTP URLs to the official Teradata ClearScape domain are allowed
+* Test data setup:
+    * The integration tests will automatically provision and start a ClearScape environment
+    * Test data will be created as part of the test execution
+    * Environment cleanup happens automatically after tests complete
+* Run the tests:
+    * Execute any integration test class
+    * The ClearScapeManager will handle environment lifecycle (create, start, stop, teardown)
+    * Tests will connect to the provisioned Teradata instance via JDBC
