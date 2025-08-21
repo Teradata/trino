@@ -134,6 +134,7 @@ import java.util.stream.Stream;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Throwables.throwIfInstanceOf;
+import static com.google.common.base.Verify.verify;
 import static io.airlift.slice.Slices.utf8Slice;
 import static io.trino.plugin.base.util.JsonTypeUtil.jsonParse;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_INSENSITIVE;
@@ -163,6 +164,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.smallintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.smallintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timestampColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.timestampWriteFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.tinyintWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.varbinaryWriteFunction;
@@ -172,7 +174,6 @@ import static io.trino.plugin.jdbc.TypeHandlingJdbcSessionProperties.getUnsuppor
 import static io.trino.plugin.jdbc.UnsupportedTypeHandling.CONVERT_TO_VARCHAR;
 import static io.trino.spi.StandardErrorCode.NOT_SUPPORTED;
 import static io.trino.spi.type.BigintType.BIGINT;
-import static io.trino.spi.type.BooleanType.BOOLEAN;
 import static io.trino.spi.type.CharType.createCharType;
 import static io.trino.spi.type.DateTimeEncoding.packDateTimeWithZone;
 import static io.trino.spi.type.DateTimeEncoding.packTimeWithTimeZone;
@@ -230,11 +231,6 @@ public class TeradataClient
             return FULL_PUSHDOWN.apply(session, domain);
         }
 
-        // 2. If pushdown is explicitly enabled via session
-        if (isEnableTeradataStringPushdown(session)) {
-            return FULL_PUSHDOWN.apply(session, domain);
-        }
-
         Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
         if (!simplifiedDomain.getValues().isDiscreteSet()) {
             // Push down inequality predicate
@@ -251,6 +247,7 @@ public class TeradataClient
     };
     private static final long MAX_FALLBACK_NDV = 1_000_000L; // max fallback NDV cap
     private static final double DEFAULT_FALLBACK_FRACTION = 0.1; // fallback = 10% of row count
+    private static final int TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION = 6;
     private final Type jsonType;
     private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
     private final boolean statisticsEnabled;
@@ -276,28 +273,6 @@ public class TeradataClient
         this.statisticsEnabled = statisticsConfig.isEnabled();
         buildExpressionRewriter();
         buildAggregateRewriter();
-    }
-
-    private static boolean isRangePredicate(Domain domain)
-    {
-        return !domain.isSingleValue() &&
-                !domain.isAll() &&
-                !domain.getValues().isDiscreteSet() &&
-                !domain.getValues().isNone() &&
-                domain.getValues().getRanges().getOrderedRanges().size() == 1;
-    }
-
-    private static boolean isMultiRangePredicate(Domain domain)
-    {
-        return !domain.getValues().isDiscreteSet() &&
-                domain.getValues().getRanges().getOrderedRanges().size() > 1 &&
-                !domain.getValues().isAll() &&
-                !domain.getValues().isNone();
-    }
-
-    private static boolean isEnableTeradataStringPushdown(ConnectorSession session)
-    {
-        return session.getProperty("string_pushdown_enabled", Boolean.class);
     }
 
     /**
@@ -474,12 +449,6 @@ public class TeradataClient
             Instant instant = Instant.ofEpochSecond(epochSeconds);
             statement.setObject(index, OffsetDateTime.ofInstant(instant, zoneId));
         });
-    }
-
-    private static boolean isCharacterType(JdbcColumnHandle column)
-    {
-        Type columnType = column.getColumnType();
-        return columnType instanceof CharType || columnType instanceof VarcharType;
     }
 
     private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
@@ -843,8 +812,6 @@ public class TeradataClient
         if (cascade) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping schemas with CASCADE option");
         }
-//        String deleteSchema = "DELETE DATABASE " + quoted(remoteSchemaName);
-//        execute(session, connection, deleteSchema);
         String dropSchema = "DROP DATABASE " + quoted(remoteSchemaName);
         execute(session, connection, dropSchema);
     }
@@ -1078,16 +1045,14 @@ public class TeradataClient
             return mapping;
         }
 
+        // switch by names as some types overlap other types going by jdbc type alone
         String jdbcTypeName = typeHandle.jdbcTypeName().orElse("VARCHAR");
         switch (jdbcTypeName.toUpperCase()) {
             case "TIMESTAMP WITH TIME ZONE":
-                // TODO review correctness
                 return Optional.of(timestampWithTimeZoneColumnMapping(typeHandle.requiredDecimalDigits()));
             case "TIME WITH TIME ZONE":
-                // TODO review correctness
                 return Optional.of(timeWithTimeZoneColumnMapping(typeHandle.requiredDecimalDigits()));
             case "JSON":
-                // TODO map to trino json value
                 return Optional.of(jsonColumnMapping());
             case "NUMBER":
                 return numberMapping(typeHandle);
@@ -1097,8 +1062,6 @@ public class TeradataClient
                 return Optional.of(arrayColumnMapping(session, connection, typeHandle));
         }
 
-        // switch by jdbc type
-        // TODO missing types interval, array, etc
         switch (typeHandle.jdbcType()) {
             case Types.TINYINT:
                 return Optional.of(tinyintColumnMapping());
@@ -1117,16 +1080,21 @@ public class TeradataClient
                 return Optional.of(doubleColumnMapping());
             case Types.NUMERIC:
             case Types.DECIMAL:
-                // also applies to teradata number type
-                // this is roughly logic see used by sql server
                 return numberMapping(typeHandle);
             case Types.CHAR:
                 return Optional.of(charColumnMapping(typeHandle.requiredColumnSize(), deriveCaseSensitivity(typeHandle.caseSensitivity())));
             case Types.VARCHAR:
                 // see prior note on trino case sensitivity
                 return Optional.of(varcharColumnMapping(typeHandle.requiredColumnSize(), deriveCaseSensitivity(typeHandle.caseSensitivity())));
+            case Types.CLOB:
+                return Optional.of(ColumnMapping.sliceMapping(
+                        createUnboundedVarcharType(),
+                        (resultSet, columnIndex) -> utf8Slice(resultSet.getString(columnIndex)),
+                        varcharWriteFunction(),
+                        DISABLE_PUSHDOWN));
             case Types.BINARY:
             case Types.VARBINARY:
+            case Types.BLOB:
                 // trino only has varbinary
                 return Optional.of(varbinaryColumnMapping());
             case Types.DATE:
@@ -1167,65 +1135,38 @@ public class TeradataClient
     @Override
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
-        if (type.equals(jsonType)) {
-            return WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction("json"));
-        }
-        if (type == BOOLEAN) {
-            return WriteMapping.booleanMapping("boolean", booleanWriteFunction());
-        }
-
-        if (type == TINYINT) {
-            // PostgreSQL has no type corresponding to tinyint
-            return WriteMapping.longMapping("tinyint", tinyintWriteFunction());
-        }
-        if (type == SMALLINT) {
-            return WriteMapping.longMapping("smallint", smallintWriteFunction());
-        }
-        if (type == INTEGER) {
-            return WriteMapping.longMapping("integer", integerWriteFunction());
-        }
-        if (type == BIGINT) {
-            return WriteMapping.longMapping("bigint", bigintWriteFunction());
-        }
-
-        if (type == REAL) {
-            return WriteMapping.doubleMapping("double precision", doubleWriteFunction());
-        }
-        if (type == DOUBLE) {
-            return WriteMapping.doubleMapping("double precision", doubleWriteFunction());
-        }
-
-        if (type instanceof DecimalType decimalType) {
-            String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
-            if (decimalType.isShort()) {
-                return WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
+        return switch (type) {
+            case Type t when t.equals(jsonType) -> WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction("json"));
+            case Type t when t == TINYINT -> WriteMapping.longMapping("smallint", tinyintWriteFunction());
+            case Type t when t == SMALLINT -> WriteMapping.longMapping("smallint", smallintWriteFunction());
+            case Type t when t == INTEGER -> WriteMapping.longMapping("integer", integerWriteFunction());
+            case Type t when t == BIGINT -> WriteMapping.longMapping("bigint", bigintWriteFunction());
+            case Type t when t == REAL -> WriteMapping.longMapping("FLOAT", realWriteFunction());
+            case Type t when t == DOUBLE -> WriteMapping.doubleMapping("double precision", doubleWriteFunction());
+            case Type t when VARBINARY.equals(t) -> WriteMapping.sliceMapping("blob", varbinaryWriteFunction());
+            case Type t when t == DATE -> WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
+            case DecimalType decimalType -> {
+                String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
+                if (decimalType.isShort()) {
+                    yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
+                }
+                yield WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
             }
-            return WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
-        }
-
-        if (type instanceof CharType charType) {
-            return WriteMapping.sliceMapping("char(" + charType.getLength() + ")", charWriteFunction());
-        }
-
-        if (type instanceof VarcharType varcharType) {
-            String dataType;
-            if (varcharType.isUnbounded()) {
-                dataType = "varchar";
+            case CharType charType -> WriteMapping.sliceMapping("char(" + charType.getLength() + ")", charWriteFunction());
+            case VarcharType varcharType -> {
+                String dataType = varcharType.isUnbounded() ? "clob" : "varchar(" + varcharType.getBoundedLength() + ")";
+                yield WriteMapping.sliceMapping(dataType, varcharWriteFunction());
             }
-            else {
-                dataType = "varchar(" + varcharType.getBoundedLength() + ")";
+            case TimeType timeType -> {
+                verify(timeType.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
+                yield WriteMapping.longMapping(format("time(%s)", timeType.getPrecision()), timeWriteFunction(timeType.getPrecision()));
             }
-            return WriteMapping.sliceMapping(dataType, varcharWriteFunction());
-        }
-        if (VARBINARY.equals(type)) {
-            return WriteMapping.sliceMapping("bytea", varbinaryWriteFunction());
-        }
-
-        if (type == DATE) {
-            return WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
-        }
-
-        throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
+            case TimestampType timestampType -> {
+                verify(timestampType.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
+                yield WriteMapping.longMapping(format("timestamp(%s)", timestampType.getPrecision()), timestampWriteFunction(timestampType));
+            }
+            default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
+        };
     }
 
     private ColumnMapping jsonColumnMapping()
@@ -1246,6 +1187,66 @@ public class TeradataClient
             }
             return jsonParse(utf8Slice(json));
         };
+    }
+
+    private ColumnMapping arrayColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
+    {
+        // Default to VARCHAR element type - you can enhance this to detect actual element type
+        Type elementType = createUnboundedVarcharType();
+        Type arrayType = new ArrayType(elementType);
+
+        return ColumnMapping.objectMapping(
+                arrayType,
+                arrayReadFunction(elementType),
+                arrayWriteFunction(elementType),
+                DISABLE_PUSHDOWN);
+    }
+
+    private ObjectReadFunction arrayReadFunction(Type elementType)
+    {
+        return ObjectReadFunction.of(Block.class, (resultSet, columnIndex) -> {
+            Array sqlArray = resultSet.getArray(columnIndex);
+            if (sqlArray == null) {
+                return null;
+            }
+
+            Object[] elements = (Object[]) sqlArray.getArray();
+            BlockBuilder blockBuilder = elementType.createBlockBuilder(null, elements.length);
+
+            for (Object element : elements) {
+                if (element == null) {
+                    blockBuilder.appendNull();
+                }
+                else {
+                    elementType.writeSlice(blockBuilder, utf8Slice(element.toString()));
+                }
+            }
+
+            return blockBuilder.build();
+        });
+    }
+
+    private ObjectWriteFunction arrayWriteFunction(Type elementType)
+    {
+        return ObjectWriteFunction.of(Block.class, (statement, index, block) -> {
+            if (block == null) {
+                statement.setNull(index, Types.ARRAY);
+                return;
+            }
+
+            Object[] elements = new Object[block.getPositionCount()];
+            for (int i = 0; i < block.getPositionCount(); i++) {
+                if (block.isNull(i)) {
+                    elements[i] = null;
+                }
+                else {
+                    elements[i] = elementType.getSlice(block, i).toStringUtf8();
+                }
+            }
+
+            Array sqlArray = statement.getConnection().createArrayOf("VARCHAR", elements);
+            statement.setArray(index, sqlArray);
+        });
     }
 
     private static class TeradataStatisticsDao
@@ -1330,65 +1331,5 @@ public class TeradataClient
         }
 
         public record ColumnIndexStatistics(boolean nullable, long distinctValues, long nullCount) {}
-    }
-
-    private ColumnMapping arrayColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
-    {
-        // Default to VARCHAR element type - you can enhance this to detect actual element type
-        Type elementType = createUnboundedVarcharType();
-        Type arrayType = new ArrayType(elementType);
-
-        return ColumnMapping.objectMapping(
-                arrayType,
-                arrayReadFunction(elementType),
-                arrayWriteFunction(elementType),
-                DISABLE_PUSHDOWN);
-    }
-
-    private ObjectReadFunction arrayReadFunction(Type elementType)
-    {
-        return ObjectReadFunction.of(Block.class, (resultSet, columnIndex) -> {
-            Array sqlArray = resultSet.getArray(columnIndex);
-            if (sqlArray == null) {
-                return null;
-            }
-
-            Object[] elements = (Object[]) sqlArray.getArray();
-            BlockBuilder blockBuilder = elementType.createBlockBuilder(null, elements.length);
-
-            for (Object element : elements) {
-                if (element == null) {
-                    blockBuilder.appendNull();
-                }
-                else {
-                    elementType.writeSlice(blockBuilder, utf8Slice(element.toString()));
-                }
-            }
-
-            return blockBuilder.build();
-        });
-    }
-
-    private ObjectWriteFunction arrayWriteFunction(Type elementType)
-    {
-        return ObjectWriteFunction.of(Block.class, (statement, index, block) -> {
-            if (block == null) {
-                statement.setNull(index, Types.ARRAY);
-                return;
-            }
-
-            Object[] elements = new Object[block.getPositionCount()];
-            for (int i = 0; i < block.getPositionCount(); i++) {
-                if (block.isNull(i)) {
-                    elements[i] = null;
-                }
-                else {
-                    elements[i] = elementType.getSlice(block, i).toStringUtf8();
-                }
-            }
-
-            Array sqlArray = statement.getConnection().createArrayOf("VARCHAR", elements);
-            statement.setArray(index, sqlArray);
-        });
     }
 }
