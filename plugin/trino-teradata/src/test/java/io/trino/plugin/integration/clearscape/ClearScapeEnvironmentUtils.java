@@ -14,8 +14,6 @@
 
 package io.trino.plugin.integration.clearscape;
 
-import static java.util.Locale.ENGLISH;
-
 public class ClearScapeEnvironmentUtils
 {
     /**
@@ -33,7 +31,7 @@ public class ClearScapeEnvironmentUtils
 
     public static String generateUniqueEnvName(Class<?> testClass)
     {
-        String className = testClass.getSimpleName().toLowerCase(ENGLISH);
+        String className = testClass.getSimpleName().toLowerCase();
         String envName = PREFIX + className;
 
         // Truncate if too long

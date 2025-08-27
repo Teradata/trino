@@ -20,7 +20,7 @@ public class ImplementAvgBigint
         extends BaseImplementAvgBigint
 {
     @Override
-    protected String getRewriteFormatExpression()
+    public String getRewriteFormatExpression()
     {
         // Teradata uses FLOAT for double precision floating-point
         // CAST to FLOAT ensures proper decimal division for AVG

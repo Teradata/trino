@@ -12,18 +12,37 @@
  * limitations under the License.
  */
 
-package io.trino.plugin.teradata.clearscape;
+package io.trino.plugin.integration.clearscape;
 
-public class Error5xxException
-        extends BaseException
+public enum Region
 {
-    public Error5xxException(int statusCode, String body, String reason)
+    US_CENTRAL("us-central"),
+
+    US_EAST("us-east"),
+
+    US_WEST("us-west"),
+
+    SOUTHAMERICA_EAST("southamerica-east"),
+
+    EUROPE_WEST("europe-west"),
+
+    ASIA_SOUTH("asia-south"),
+
+    ASIA_NORTHEAST("asia-northeast"),
+
+    ASIA_SOUTHEAST("asia-southeast"),
+
+    AUSTRALIA_SOUTHEAST("australia-southeast");
+
+    private final String regionName;
+
+    Region(String regionName)
     {
-        super(statusCode, body, reason);
+        this.regionName = regionName;
     }
 
-    public Error5xxException(int statusCode, String body)
+    public String getRegionName()
     {
-        super(statusCode, body);
+        return regionName;
     }
 }

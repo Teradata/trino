@@ -267,11 +267,23 @@ public class TestingTeradataServer
         return config.getTMode();
     }
 
+    public String getJdbcURL()
+    {
+        return config.getJdbcUrl();
+    }
+
+    public Connection getConnection()
+    {
+        return connection;
+    }
+
     @Override
     public void close()
     {
         try {
-            dropTestDatabaseIfExists();
+            if (clearScapeSetup == null) {
+                dropTestDatabaseIfExists();
+            }
             if (!connection.isClosed()) {
                 connection.close();
             }
@@ -280,7 +292,7 @@ public class TestingTeradataServer
             }
         }
         catch (SQLException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Failed to close connection", e);
         }
     }
 
