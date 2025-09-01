@@ -1,8 +1,20 @@
+/*
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.trino.plugin.teradata.queryband;
 
 import io.trino.plugin.teradata.util.TeradataConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 /**
@@ -24,7 +36,9 @@ import java.util.regex.Pattern;
  * @version 1.0
  * @since 1.0
  */
-public class QueryBandBuilder {
+
+public class QueryBandBuilder
+{
 //    private static final Logger LOGGER = LoggerFactory.getLogger(QueryBandBuilder.class);
     /** The current query band string, initialized with default values */
     private static String queryBand = TeradataConstants.DEFAULT_QUERY_BAND;
@@ -55,6 +69,14 @@ public class QueryBandBuilder {
      * // Output: default query band from TeradataConstants
      * </pre>
      */
+    /**
+     * Private constructor to prevent instantiation of utility class.
+     */
+    private QueryBandBuilder()
+    {
+        // Utility class - no instantiation allowed
+    }
+
     public static String handleUserQueryBandText(String queryBandText)
     {
         if (queryBandText == null || queryBandText.trim().isEmpty()) {
@@ -81,10 +103,10 @@ public class QueryBandBuilder {
             if (!appNameValue.toLowerCase().contains("trino")) {
                 String replacement = "appname=" + appNameValue + "_trino";
                 updatedQueryBand = new StringBuilder(
-                        updatedQueryBand.toString().replaceFirst("appname\\s*=\\s*([^;]*)", replacement)
-                );
+                        updatedQueryBand.toString().replaceFirst("appname\\s*=\\s*([^;]*)", replacement));
             }
-        } else {
+        }
+        else {
             if (!updatedQueryBand.isEmpty() && !updatedQueryBand.toString().endsWith(";")) {
                 updatedQueryBand.append(";");
             }
@@ -131,5 +153,4 @@ public class QueryBandBuilder {
     {
         queryBand = handleUserQueryBandText(userQueryBand);
     }
-
 }

@@ -23,9 +23,9 @@ public interface TeradataConstants
      * The maximum length allowed for Teradata object names (e.g., databases, tables, columns).
      */
     int TERADATA_OBJECT_NAME_LIMIT = 128;
-    public static final String QUERY_BAND_SET = "SET QUERY_BAND='";
-    public static final String QUERY_BAND_SESSION = "' FOR SESSION;";
-    public static final String DEFAULT_QUERY_BAND = "org=teradata-internal-telem;appname=trino;";
-    public static final String DEFAULT_QUERY_BAND_ORG = "org=teradata-internal-telem";
-    public static final String DEFAULT_QUERY_BAND_APPNAME = "appname=trino";
+    String QUERY_BAND_SET = "SET QUERY_BAND='";
+    String QUERY_BAND_SESSION = "' FOR SESSION;";
+    String DEFAULT_QUERY_BAND = "org=teradata-internal-telem;appname=trino;";
+    String DEFAULT_QUERY_BAND_ORG = "org=teradata-internal-telem";
+    String DEFAULT_QUERY_BAND_APPNAME = "appname=trino";
 }
