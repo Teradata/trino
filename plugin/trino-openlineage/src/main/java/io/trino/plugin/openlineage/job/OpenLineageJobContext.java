@@ -11,19 +11,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.metadata;
+package io.trino.plugin.openlineage.job;
 
-import io.trino.spi.connector.CatalogHandle;
-import io.trino.spi.connector.ConnectorName;
+import io.trino.spi.eventlistener.QueryContext;
+import io.trino.spi.eventlistener.QueryMetadata;
 
 import static java.util.Objects.requireNonNull;
 
-public record CatalogInfo(String catalogName, CatalogHandle catalogHandle, ConnectorName connectorName, boolean loaded)
+public record OpenLineageJobContext(QueryContext queryContext, QueryMetadata queryMetadata)
 {
-    public CatalogInfo
+    public OpenLineageJobContext
     {
-        requireNonNull(catalogName, "catalogName is null");
-        requireNonNull(catalogHandle, "catalogHandle is null");
-        requireNonNull(connectorName, "connectorName is null");
+        requireNonNull(queryContext, "queryContext is null");
+        requireNonNull(queryMetadata, "queryMetadata is null");
     }
 }
