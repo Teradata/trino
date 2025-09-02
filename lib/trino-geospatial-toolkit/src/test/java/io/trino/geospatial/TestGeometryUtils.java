@@ -11,19 +11,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.metadata;
+package io.trino.geospatial;
 
-import io.trino.spi.connector.CatalogHandle;
-import io.trino.spi.connector.ConnectorName;
+import org.junit.jupiter.api.Test;
+import org.locationtech.jts.io.ParseException;
+import org.locationtech.jts.io.WKTReader;
 
-import static java.util.Objects.requireNonNull;
+import static io.trino.geospatial.GeometryUtils.jsonFromJtsGeometry;
+import static org.assertj.core.api.Assertions.assertThat;
 
-public record CatalogInfo(String catalogName, CatalogHandle catalogHandle, ConnectorName connectorName, boolean loaded)
+final class TestGeometryUtils
 {
-    public CatalogInfo
+    @Test
+    void testJsonFromJtsGeometry()
+            throws ParseException
     {
-        requireNonNull(catalogName, "catalogName is null");
-        requireNonNull(catalogHandle, "catalogHandle is null");
-        requireNonNull(connectorName, "connectorName is null");
+        String json = jsonFromJtsGeometry(new WKTReader().read("POINT (1 1)"));
+        assertThat(json)
+                .isNotNull()
+                .doesNotContain("crs");
     }
 }
