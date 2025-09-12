@@ -20,6 +20,8 @@ import io.trino.plugin.base.aggregation.AggregateFunctionRewriter;
 import io.trino.plugin.base.aggregation.AggregateFunctionRule;
 import io.trino.plugin.base.expression.ConnectorExpressionRewriter;
 import io.trino.plugin.base.mapping.IdentifierMapping;
+import io.trino.plugin.base.projection.ProjectFunctionRewriter;
+import io.trino.plugin.base.projection.ProjectFunctionRule;
 import io.trino.plugin.jdbc.BaseJdbcClient;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
 import io.trino.plugin.jdbc.CaseSensitivity;
@@ -80,8 +82,6 @@ import io.trino.spi.connector.JoinStatistics;
 import io.trino.spi.connector.JoinType;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.expression.ConnectorExpression;
-import io.trino.spi.predicate.Domain;
-import io.trino.spi.predicate.ValueSet;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
@@ -146,7 +146,6 @@ import static io.trino.plugin.jdbc.CaseSensitivity.CASE_INSENSITIVE;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_SENSITIVE;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcJoinPushdownUtil.implementJoinCostAware;
-import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.getDomainCompactionThreshold;
 import static io.trino.plugin.jdbc.PredicatePushdownController.CASE_INSENSITIVE_CHARACTER_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
@@ -224,26 +223,7 @@ public class TeradataClient
      * Predicate pushdown controller for Teradata string columns.
      * Ensures correct pushdown behavior for case-sensitive and case-insensitive domains.
      */
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = (session, domain) -> {
-        // 1. NULL-only filters are always safe
-        if (domain.isOnlyNull()) {
-            return FULL_PUSHDOWN.apply(session, domain);
-        }
-
-        Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
-        if (!simplifiedDomain.getValues().isDiscreteSet()) {
-            // Push down inequality predicate
-            ValueSet complement = simplifiedDomain.getValues().complement();
-            if (complement.isDiscreteSet()) {
-                return FULL_PUSHDOWN.apply(session, simplifiedDomain);
-            }
-            // Domain#simplify can turn a discrete set into a range predicate
-            // Push down of range predicate for varchar/char types could lead to incorrect results
-            // when the remote database is case-insensitive
-            return DISABLE_PUSHDOWN.apply(session, domain);
-        }
-        return FULL_PUSHDOWN.apply(session, simplifiedDomain);
-    };
+    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
     /**
      * Maximum fallback number of distinct values (NDV) for statistics estimation.
      */
@@ -277,6 +257,8 @@ public class TeradataClient
      */
     private AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
 
+    private ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
+
     /**
      * Constructs a new TeradataClient instance.
      *
@@ -296,6 +278,7 @@ public class TeradataClient
         this.statisticsEnabled = statisticsConfig.isEnabled();
         buildExpressionRewriter();
         buildAggregateRewriter();
+        buildProjectionFunctionRewriter();
     }
 
     /**
@@ -928,6 +911,15 @@ public class TeradataClient
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping a not null constraint");
     }
 
+    private void buildProjectionFunctionRewriter()
+    {
+        this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
+                connectorExpressionRewriter,
+                com.google.common.collect.ImmutableSet.<ProjectFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
+                        .add(new RewriteSubstringFunction())
+                        .build());
+    }
+
     /**
      * Builds the expression rewriter for translating connector expressions
      * into SQL fragments understood by Teradata.
@@ -940,10 +932,14 @@ public class TeradataClient
                 .add(new RewriteIn())
                 .add(new RewriteLikeWithCaseSensitivity())
                 .add(new RewriteLikeEscapeWithCaseSensitivity())
+                .add(new RewriteSubstring())
                 .withTypeClass("integer_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint"))
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
+                .withTypeClass("string_type", ImmutableSet.of("varchar"))
                 .map("$equal(left: numeric_type, right: numeric_type)").to("left = right")
                 .map("$not_equal(left: numeric_type, right: numeric_type)").to("left <> right")
+                .map("$equal(left: string_type, right: string_type)").to("left = right")
+                .map("$not_equal(left: string_type, right: string_type)").to("left <> right")
                 .map("$less_than(left: numeric_type, right: numeric_type)").to("left < right")
                 .map("$less_than_or_equal(left: numeric_type, right: numeric_type)").to("left <= right")
                 .map("$greater_than(left: numeric_type, right: numeric_type)").to("left > right")
@@ -977,7 +973,7 @@ public class TeradataClient
         this.aggregateFunctionRewriter = new AggregateFunctionRewriter<>(
                 this.connectorExpressionRewriter,
                 ImmutableSet.<AggregateFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
-                        // Basic aggregates
+                        // Basic aggregate
                         .add(new ImplementCountAll(bigintTypeHandle))
                         .add(new ImplementCount(bigintTypeHandle))
                         .add(new ImplementCountDistinct(bigintTypeHandle, false))
@@ -1017,6 +1013,17 @@ public class TeradataClient
     public Optional<ParameterizedExpression> convertPredicate(ConnectorSession session, ConnectorExpression expression, Map<String, ColumnHandle> assignments)
     {
         return this.connectorExpressionRewriter.rewrite(session, expression, assignments);
+    }
+
+    @Override
+    public Optional<JdbcExpression> convertProjection(
+            ConnectorSession session,
+            JdbcTableHandle handle,
+            ConnectorExpression expression,
+            Map<String, ColumnHandle> assignments)
+    {
+        // Reuse the same connector expression rewriter used for predicates
+        return projectFunctionRewriter.rewrite(session, handle, expression, assignments);
     }
 
     @Override
