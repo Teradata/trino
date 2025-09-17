@@ -4,7 +4,7 @@
     <parent>
         <groupId>io.trino</groupId>
         <artifactId>trino-root</artifactId>
-        <version>476</version>
+        <version>477-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -12,6 +12,10 @@
     <packaging>trino-plugin</packaging>
     <name>${project.artifactId}</name>
     <description>Trino - Teradata connector</description>
+
+    <properties>
+        <air.compiler.fail-warnings>true</air.compiler.fail-warnings>
+    </properties>
 
     <dependencies>
         <dependency>
