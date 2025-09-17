@@ -119,15 +119,6 @@ public final class TeradataConnectorTest
         };
     }
 
-    @Override
-    protected QueryRunner createQueryRunner()
-            throws Exception
-    {
-        database = new TestingTeradataServer(ClearScapeEnvironmentUtils.generateUniqueEnvName(this.getClass()));
-        // Register this specific instance for this test class
-        return TeradataQueryRunner.builder(database).setInitialTables(REQUIRED_TPCH_TABLES).build();
-    }
-
     @AfterAll
     public void cleanupTestDatabase() {
         database.close();
@@ -193,25 +184,34 @@ public final class TeradataConnectorTest
         Expecting actual: (111.660, 111728394.9938271616, 1.117283945E8, 111.6605) to contain exactly in any order: [(111.661, 111728394.9938271605, 1.117283945E8, 111.6605)] */
     @Override
     @Test
-    public void testNumericAggregationPushdown() {
-        try (TestTable emptyTable = this.createAggregationTestTable("test_num_agg_pd", ImmutableList.of())) {
-            assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + emptyTable.getName())).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+    public void testNumericAggregationPushdown()
+    {
+        if (!this.hasBehavior(TestingConnectorBehavior.SUPPORTS_AGGREGATION_PUSHDOWN)) {
+            assertThat(this.query("SELECT min(nationkey) FROM nation")).isNotFullyPushedDown(AggregationNode.class);
+            assertThat(this.query("SELECT max(nationkey) FROM nation")).isNotFullyPushedDown(AggregationNode.class);
+            assertThat(this.query("SELECT sum(nationkey) FROM nation")).isNotFullyPushedDown(AggregationNode.class);
+            assertThat(this.query("SELECT avg(nationkey) FROM nation")).isNotFullyPushedDown(AggregationNode.class);
         }
+        else {
+            try (TestTable emptyTable = this.createAggregationTestTable("test_num_agg_pd", ImmutableList.of())) {
+                assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + emptyTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + emptyTable.getName())).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+            }
 
-        try (TestTable testTable = this.createAggregationTestTable("test_num_agg_pd", ImmutableList.of("100.000, 100000000.000000000, 100.000, 100000000", "123.321, 123456789.987654321, 123.321, 123456789"))) {
-            assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + testTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + testTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + testTable.getName())).isFullyPushedDown();
-            assertThat(this.query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + testTable.getName())).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
-            assertThat(this.query("SELECT min(short_decimal), min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 AND long_decimal < 124")).isFullyPushedDown();
-            assertThat(this.query("SELECT min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110")).isFullyPushedDown();
-            assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " GROUP BY short_decimal")).isFullyPushedDown();
-            assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 AND long_decimal < 124 GROUP BY short_decimal")).isFullyPushedDown();
-            assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 GROUP BY short_decimal")).isFullyPushedDown();
-            assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE long_decimal < 124 GROUP BY short_decimal")).isFullyPushedDown();
+            try (TestTable testTable = this.createAggregationTestTable("test_num_agg_pd", ImmutableList.of("100.000, 100000000.000000000, 100.000, 100000000", "123.321, 123456789.987654321, 123.321, 123456789"))) {
+                assertThat(this.query("SELECT min(short_decimal), min(long_decimal), min(a_bigint), min(t_double) FROM " + testTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT max(short_decimal), max(long_decimal), max(a_bigint), max(t_double) FROM " + testTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT sum(short_decimal), sum(long_decimal), sum(a_bigint), sum(t_double) FROM " + testTable.getName())).isFullyPushedDown();
+                assertThat(this.query("SELECT avg(short_decimal), avg(long_decimal), avg(a_bigint), avg(t_double) FROM " + testTable.getName())).skipResultsCorrectnessCheckForPushdown().isFullyPushedDown();
+                assertThat(this.query("SELECT min(short_decimal), min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 AND long_decimal < 124")).isFullyPushedDown();
+                assertThat(this.query("SELECT min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110")).isFullyPushedDown();
+                assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " GROUP BY short_decimal")).isFullyPushedDown();
+                assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 AND long_decimal < 124 GROUP BY short_decimal")).isFullyPushedDown();
+                assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE short_decimal < 110 GROUP BY short_decimal")).isFullyPushedDown();
+                assertThat(this.query("SELECT short_decimal, min(long_decimal) FROM " + testTable.getName() + " WHERE long_decimal < 124 GROUP BY short_decimal")).isFullyPushedDown();
+            }
         }
     }
 
@@ -284,12 +284,18 @@ public final class TeradataConnectorTest
     // Overriding this test case as Teradata raises different error message for division by zero.
     @Override
     @Test
-    public void testArithmeticPredicatePushdown() {
-        assertThat(this.query("SELECT shippriority FROM orders WHERE shippriority % 4 = 0")).isFullyPushedDown();
-        assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % nationkey = 2")).isFullyPushedDown().matches("VALUES (BIGINT '3', CAST('CANADA' AS varchar(25)), BIGINT '1')");
-        assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % -nationkey = 2")).isFullyPushedDown().matches("VALUES (BIGINT '3', CAST('CANADA' AS varchar(25)), BIGINT '1')");
-        assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % 0 = 2")).failure().hasMessageContaining("Operation Error");
-        assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % (regionkey - 1) = 2")).failure().hasMessageContaining("Operation Error");
+    public void testArithmeticPredicatePushdown()
+    {
+        if (!this.hasBehavior(TestingConnectorBehavior.SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN)) {
+            assertThat(this.query("SELECT shippriority FROM orders WHERE shippriority % 4 = 0")).isNotFullyPushedDown(FilterNode.class);
+        }
+        else {
+            assertThat(this.query("SELECT shippriority FROM orders WHERE shippriority % 4 = 0")).isFullyPushedDown();
+            assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % nationkey = 2")).isFullyPushedDown().matches("VALUES (BIGINT '3', CAST('CANADA' AS varchar(25)), BIGINT '1')");
+            assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % -nationkey = 2")).isFullyPushedDown().matches("VALUES (BIGINT '3', CAST('CANADA' AS varchar(25)), BIGINT '1')");
+            assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % 0 = 2")).failure().hasMessageContaining("Operation Error");
+            assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % (regionkey - 1) = 2")).failure().hasMessageContaining("Operation Error");
+        }
     }
 
     // Tests CREATE TABLE AS SELECT functionality with Teradata syntax
@@ -562,7 +568,7 @@ public final class TeradataConnectorTest
 
         try {
             assertThat(this.query("SELECT i FROM " + table.getName() + " WHERE CAST(t AS date) = DATE '2005-09-10'")).hasCorrectResultsRegardlessOfPushdown();
-        } catch (Throwable var7) {
+       } catch (Throwable var7) {
             if (table != null) {
                 try {
                     e.close();
@@ -624,7 +630,7 @@ public final class TeradataConnectorTest
         String validColumnName = "z".repeat(maxLength - 5);
 
         try (TestTable left = this.newTrinoTable("test_long_id_l", String.format("(%s BIGINT)", validColumnName));
-             TestTable right = this.newTrinoTable("test_long_id_r", String.format("(%s BIGINT)", validColumnName))) {
+            TestTable right = this.newTrinoTable("test_long_id_r", String.format("(%s BIGINT)", validColumnName))) {
             assertThat(this.query(this.joinPushdownEnabled(this.getSession()), "SELECT l.%1$s, r.%1$s\nFROM %2$s l JOIN %3$s r ON l.%1$s = r.%1$s".formatted(validColumnName, left.getName(), right.getName()))).isFullyPushedDown();
         }
     }

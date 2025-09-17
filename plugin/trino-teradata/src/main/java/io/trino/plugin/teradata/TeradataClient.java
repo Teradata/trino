@@ -211,6 +211,7 @@ public class TeradataClient
 {
     private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
 
+
     private static final long MAX_FALLBACK_NDV = 1_000_000L;
 
     private static final double DEFAULT_FALLBACK_FRACTION = 0.1;
@@ -226,7 +227,7 @@ public class TeradataClient
     private ConnectorExpressionRewriter<ParameterizedExpression> connectorExpressionRewriter;
 
     private AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
-
+    
     private ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
 
     @Inject
@@ -246,14 +247,14 @@ public class TeradataClient
         buildAggregateRewriter();
         buildProjectionFunctionRewriter();
     }
-
+    
     public static ColumnMapping timeColumnMapping(int precision)
     {
         TimeType timeType = createTimeType(precision);
         return ColumnMapping.longMapping(timeType, timeReadFunction(timeType), timeWriteFunction(precision), DISABLE_PUSHDOWN);
     }
 
-    public static LongReadFunction timeReadFunction(TimeType timeType)
+  public static LongReadFunction timeReadFunction(TimeType timeType)
     {
         requireNonNull(timeType, "timeType is null");
         return (resultSet, columnIndex) -> {
@@ -335,7 +336,7 @@ public class TeradataClient
         };
     }
 
-    private static ObjectReadFunction longTimestampWithTimeZoneReadFunction()
+   private static ObjectReadFunction longTimestampWithTimeZoneReadFunction()
     {
         return ObjectReadFunction.of(LongTimestampWithTimeZone.class, (resultSet, columnIndex) -> {
             Calendar calendar = Calendar.getInstance();
@@ -348,7 +349,7 @@ public class TeradataClient
         });
     }
 
-    private static ObjectWriteFunction longTimestampWithTimeZoneWriteFunction()
+   private static ObjectWriteFunction longTimestampWithTimeZoneWriteFunction()
     {
         return ObjectWriteFunction.of(LongTimestampWithTimeZone.class, (statement, index, value) -> {
             long epochMillis = value.getEpochMillis();
@@ -359,7 +360,7 @@ public class TeradataClient
         });
     }
 
-    private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
+   private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
     {
         if (charLength > CharType.MAX_LENGTH) {
             return varcharColumnMapping(charLength, isCaseSensitive);
@@ -384,7 +385,7 @@ public class TeradataClient
                 isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
-    private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
+   private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
     {
         return Optional.of(new JdbcTypeHandle(Types.NUMERIC, Optional.of("decimal"), Optional.of(decimalType.getPrecision()), Optional.of(decimalType.getScale()), Optional.empty(), Optional.empty()));
     }
@@ -393,18 +394,15 @@ public class TeradataClient
     {
         String bindExpression = format("CAST(? AS %s)", "json".toUpperCase());
 
-        return new SliceWriteFunction()
-        {
+        return new SliceWriteFunction() {
             @Override
-            public String getBindExpression()
-            {
+            public String getBindExpression() {
                 return bindExpression;
             }
 
             @Override
             public void set(PreparedStatement statement, int index, Slice value)
-                    throws SQLException
-            {
+                    throws SQLException {
                 if (value == null) {
                     statement.setNull(index, Types.OTHER);
                     return;
@@ -414,7 +412,7 @@ public class TeradataClient
         };
     }
 
-    private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
+   private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
     {
         return switch (teradataJDBCCaseSensitivity) {
             case CASE_INSENSITIVE -> false;
@@ -424,7 +422,7 @@ public class TeradataClient
     }
 
     @Override
-    protected Optional<BiFunction<String, Long, String>> limitFunction()
+    protected Optional<BiFunction<String, Long, String>> limitFunction() 
     {
         return Optional.of((sql, limit) -> {
             return sql.replaceFirst("(?i)^SELECT", "SELECT TOP " + limit);
@@ -432,26 +430,26 @@ public class TeradataClient
     }
 
     @Override
-    public boolean isLimitGuaranteed(ConnectorSession session)
+    public boolean isLimitGuaranteed(ConnectorSession session) 
     {
         return true;
     }
 
     @Override
-    public boolean isTopNGuaranteed(ConnectorSession session)
+    public boolean isTopNGuaranteed(ConnectorSession session) 
     {
         return true;
     }
 
     @Override
-    public boolean supportsTopN(ConnectorSession session, JdbcTableHandle handle, List<JdbcSortItem> sortOrder)
+    public boolean supportsTopN(ConnectorSession session, JdbcTableHandle handle, List<JdbcSortItem> sortOrder) 
     {
         // Teradata supports TOP N with ORDER BY for all data types
         return true;
     }
 
     @Override
-    protected Optional<TopNFunction> topNFunction()
+    protected Optional<TopNFunction> topNFunction() 
     {
         return Optional.of((query, sortItems, limit) -> {
             // Collect selected columns
@@ -498,7 +496,7 @@ public class TeradataClient
     }
 
     @Override
-    public TableStatistics getTableStatistics(ConnectorSession session, JdbcTableHandle handle)
+    public TableStatistics getTableStatistics(ConnectorSession session, JdbcTableHandle handle) 
     {
         if (!statisticsEnabled) {
             return TableStatistics.empty();
@@ -508,20 +506,19 @@ public class TeradataClient
         }
         try {
             return readTableStatistics(session, handle);
-        }
-        catch (SQLException | RuntimeException e) {
+        } catch (SQLException | RuntimeException e) {
             throwIfInstanceOf(e, TrinoException.class);
             throw new TrinoException(JDBC_ERROR, "Failed fetching statistics for table: " + handle, e);
         }
     }
 
     private TableStatistics readTableStatistics(ConnectorSession session, JdbcTableHandle table)
-            throws SQLException
+            throws SQLException 
     {
         checkArgument(table.isNamedRelation(), "Relation is not a table: %s", table);
 
         try (Connection connection = connectionFactory.openConnection(session);
-                Handle handle = Jdbi.open(connection)) {
+             Handle handle = Jdbi.open(connection)) {
             TeradataStatisticsDao dao = new TeradataStatisticsDao(handle);
             long rowCount = dao.estimateRowCount(table);
 
@@ -550,12 +547,10 @@ public class TeradataClient
                     if (distinctValues <= 0) {
                         // No NDV info from Teradata, fallback
                         columnStats.setDistinctValuesCount(Estimate.of(computeFallbackNDV(rowCount)));
-                    }
-                    else {
+                    } else {
                         columnStats.setDistinctValuesCount(Estimate.of(distinctValues));
                     }
-                }
-                else {
+                } else {
                     // No stats at all for this column, fallback both null fraction and NDV
                     columnStats.setNullsFraction(Estimate.of(0.0));
                     columnStats.setDistinctValuesCount(Estimate.of(computeFallbackNDV(rowCount)));
@@ -590,7 +585,7 @@ public class TeradataClient
             PreparedQuery rightSource,
             Map<JdbcColumnHandle, String> rightProjections,
             List<ParameterizedExpression> joinConditions,
-            JoinStatistics statistics)
+            JoinStatistics statistics) 
     {
         return implementJoinCostAware(
                 session,
@@ -602,7 +597,7 @@ public class TeradataClient
     }
 
     @Override
-    public Optional<JdbcExpression> implementAggregation(ConnectorSession session, AggregateFunction aggregate, Map<String, ColumnHandle> assignments)
+    public Optional<JdbcExpression> implementAggregation(ConnectorSession session, AggregateFunction aggregate, Map<String, ColumnHandle> assignments) 
     {
         return aggregateFunctionRewriter.rewrite(session, aggregate, assignments);
     }
@@ -615,7 +610,7 @@ public class TeradataClient
     }
 
     @Override
-    protected void copyTableSchema(ConnectorSession session, Connection connection, String catalogName, String schemaName, String tableName, String newTableName, List<String> columnNames)
+    protected void copyTableSchema(ConnectorSession session, Connection connection, String catalogName, String schemaName, String tableName, String newTableName, List<String> columnNames) 
     {
         String tableCopyFormat = "CREATE TABLE %s AS ( SELECT * FROM %s ) WITH DATA";
         String sql = format(
@@ -624,15 +619,14 @@ public class TeradataClient
                 quoted(catalogName, schemaName, tableName));
         try {
             execute(session, connection, sql);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             throw new TrinoException(JDBC_ERROR, e);
         }
     }
 
     @Override
     protected void verifySchemaName(DatabaseMetaData databaseMetadata, String schemaName)
-            throws SQLException
+            throws SQLException 
     {
         int schemaNameLimit = databaseMetadata.getMaxSchemaNameLength();
         if (schemaName.length() > schemaNameLimit) {
@@ -642,7 +636,7 @@ public class TeradataClient
 
     @Override
     protected void verifyTableName(DatabaseMetaData databaseMetadata, String tableName)
-            throws SQLException
+            throws SQLException 
     {
         if (tableName.length() > databaseMetadata.getMaxTableNameLength()) {
             throw new TrinoException(NOT_SUPPORTED, format("Table name must be shorter than or equal to '%s' characters but got '%s'", databaseMetadata.getMaxTableNameLength(), tableName.length()));
@@ -651,7 +645,7 @@ public class TeradataClient
 
     @Override
     protected void verifyColumnName(DatabaseMetaData databaseMetadata, String columnName)
-            throws SQLException
+            throws SQLException 
     {
         if (columnName.length() > databaseMetadata.getMaxColumnNameLength()) {
             throw new TrinoException(NOT_SUPPORTED, format("Column name must be shorter than or equal to '%s' characters but got '%s': '%s'", databaseMetadata.getMaxColumnNameLength(), columnName.length(), columnName));
@@ -659,7 +653,7 @@ public class TeradataClient
     }
 
     protected void dropSchema(ConnectorSession session, Connection connection, String remoteSchemaName, boolean cascade)
-            throws SQLException
+            throws SQLException 
     {
         if (cascade) {
             throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping schemas with CASCADE option");
@@ -669,25 +663,25 @@ public class TeradataClient
     }
 
     @Override
-    public void renameSchema(ConnectorSession session, String schemaName, String newSchemaName)
+    public void renameSchema(ConnectorSession session, String schemaName, String newSchemaName) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming schema");
     }
 
     @Override
-    public OptionalLong delete(ConnectorSession session, JdbcTableHandle handle)
+    public OptionalLong delete(ConnectorSession session, JdbcTableHandle handle) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support modifying table rows");
     }
 
     @Override
-    public void truncateTable(ConnectorSession session, JdbcTableHandle handle)
+    public void truncateTable(ConnectorSession session, JdbcTableHandle handle) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support truncating tables");
     }
 
     @Override
-    public void dropColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column)
+    public void dropColumn(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping columns");
     }
@@ -699,36 +693,36 @@ public class TeradataClient
     }
 
     @Override
-    public void renameTable(ConnectorSession session, JdbcTableHandle handle, SchemaTableName newTableName)
+    public void renameTable(ConnectorSession session, JdbcTableHandle handle, SchemaTableName newTableName) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming tables");
     }
 
     @Override
-    public JdbcOutputTableHandle beginInsertTable(ConnectorSession session, JdbcTableHandle tableHandle, List<JdbcColumnHandle> columns)
+    public JdbcOutputTableHandle beginInsertTable(ConnectorSession session, JdbcTableHandle tableHandle, List<JdbcColumnHandle> columns) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support inserts");
     }
 
     @Override
-    public void setColumnType(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column, Type type)
+    public void setColumnType(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column, Type type) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support setting column types");
     }
 
     @Override
-    public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column, ColumnPosition position)
+    public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column, ColumnPosition position) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support add column operations");
     }
 
     @Override
-    public void dropNotNullConstraint(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column)
+    public void dropNotNullConstraint(ConnectorSession session, JdbcTableHandle handle, JdbcColumnHandle column) 
     {
         throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping a not null constraint");
     }
 
-    private void buildProjectionFunctionRewriter()
+   private void buildProjectionFunctionRewriter()
     {
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
                 connectorExpressionRewriter,
@@ -805,7 +799,7 @@ public class TeradataClient
     }
 
     @Override
-    public Optional<ParameterizedExpression> convertPredicate(ConnectorSession session, ConnectorExpression expression, Map<String, ColumnHandle> assignments)
+    public Optional<ParameterizedExpression> convertPredicate(ConnectorSession session, ConnectorExpression expression, Map<String, ColumnHandle> assignments) 
     {
         return this.connectorExpressionRewriter.rewrite(session, expression, assignments);
     }
@@ -828,7 +822,7 @@ public class TeradataClient
     }
 
     @Override
-    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
+    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName) 
     {
         // try to use result set metadata from select * from table to populate the mapping
         try {
@@ -842,15 +836,14 @@ public class TeradataClient
             }
             pstmt.close();
             return caseMap;
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             // behavior of base jdbc
             return ImmutableMap.of();
         }
     }
 
     @Override
-    public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
+    public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle) 
     {
         // this method should ultimately encompass all the expected teradata data types
 
@@ -963,7 +956,7 @@ public class TeradataClient
                 String dataType = String.format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
                 if (decimalTypeInstance.isShort()) {
                     yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalTypeInstance));
-                }
+            }
                 yield WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalTypeInstance));
             }
             case CharType charTypeInstance ->
@@ -1010,7 +1003,7 @@ public class TeradataClient
         };
     }
 
-    private ColumnMapping arrayColumnMapping()
+   private ColumnMapping arrayColumnMapping()
     {
         // Default to VARCHAR element type - you can enhance this to detect actual element type
         Type elementType = createUnboundedVarcharType();
@@ -1037,8 +1030,7 @@ public class TeradataClient
             for (Object element : elements) {
                 if (element == null) {
                     blockBuilder.appendNull();
-                }
-                else {
+                } else {
                     elementType.writeSlice(blockBuilder, utf8Slice(element.toString()));
                 }
             }
@@ -1059,8 +1051,7 @@ public class TeradataClient
             for (int i = 0; i < block.getPositionCount(); i++) {
                 if (block.isNull(i)) {
                     elements[i] = null;
-                }
-                else {
+                } else {
                     elements[i] = elementType.getSlice(block, i).toStringUtf8();
                 }
             }
@@ -1094,7 +1085,7 @@ public class TeradataClient
                     .orElse(0L);
         }
 
-        public Map<String, ColumnIndexStatistics> getColumnIndexStatistics(JdbcTableHandle table)
+       public Map<String, ColumnIndexStatistics> getColumnIndexStatistics(JdbcTableHandle table)
         {
             RemoteTableName remote = table.getRequiredNamedRelation().getRemoteTableName();
             String schema = remote.getSchemaName().orElseThrow();
@@ -1124,7 +1115,7 @@ public class TeradataClient
                     .collect(toMap(Map.Entry::getKey, Map.Entry::getValue));
         }
 
-        public OptionalLong sampleRowCountEstimate(JdbcTableHandle table, Connection connection)
+       public OptionalLong sampleRowCountEstimate(JdbcTableHandle table, Connection connection)
         {
             RemoteTableName remote = table.getRequiredNamedRelation().getRemoteTableName();
             String schema = remote.getSchemaName().orElseThrow();
@@ -1133,13 +1124,12 @@ public class TeradataClient
             String sql = format("SELECT COUNT(*) * 100 AS estimated_count FROM %s.%s SAMPLE 1", schema, tableName);
 
             try (Statement stmt = connection.createStatement();
-                    ResultSet rs = stmt.executeQuery(sql)) {
+                 ResultSet rs = stmt.executeQuery(sql)) {
                 if (rs.next()) {
                     long estimated = rs.getLong("estimated_count");
                     return OptionalLong.of(estimated);
                 }
-            }
-            catch (SQLException e) {
+            } catch (SQLException e) {
                 throw new TrinoException(JDBC_ERROR, "Sampling fallback failed: " + e);
             }
 
