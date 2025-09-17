@@ -35,16 +35,24 @@ import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.type.JsonType.JSON;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
+import io.trino.testing.AbstractTestQueryFramework;
+import io.trino.testing.QueryRunner;
+import io.trino.testing.datatype.CreateAndInsertDataSetup;
+import io.trino.testing.datatype.DataSetup;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+
 public class TestTeradataTypeMapping
-        extends AbstractTeradataJDBCTest
-{
-    public TestTeradataTypeMapping()
-    {
-        super(ClearScapeEnvironmentUtils.generateUniqueEnvName(TestTeradataTypeMapping.class));
+        extends AbstractTestQueryFramework {
+    protected TestingTeradataServer database;
+    protected String envName;
+
+    public TestTeradataTypeMapping(String envName) {
+        this.envName = envName;
+        ClearScapeEnvironmentUtils.generateUniqueEnvName(TestTeradataTypeMapping.class);
     }
 
-    static String padBinaryString(String prefix, int length)
-    {
+    static String padBinaryString(String prefix, int length) {
         // simple function to help with byte test cases
         StringBuilder result = new StringBuilder(prefix);
         while (result.length() < length * 2) {
@@ -54,13 +62,36 @@ public class TestTeradataTypeMapping
     }
 
     @Override
-    protected void initTables()
-    {
+    protected QueryRunner createQueryRunner()
+            throws Exception {
+        database = new TestingTeradataServer(this.envName);
+        // Register this specific instance for this test class
+        return TeradataQueryRunner.builder(database).build();
+    }
+
+    protected DataSetup teradataJDBCCreateAndInsert(String tableNamePrefix) {
+        String prefix = String.format("%s.%s", database.getDatabaseName(), tableNamePrefix);
+        return new CreateAndInsertDataSetup(database, prefix);
+    }
+
+    @BeforeAll
+    public void setup() {
+        initTables();
+    }
+
+    @AfterAll
+    public void cleanupTestClass() {
+        if (database != null) {
+            database.close();
+        }
+    }
+
+    @Override
+    protected void initTables() {
     }
 
     @Test
-    public void testByteint()
-    {
+    public void testByteint() {
         SqlDataTypeTest.create()
                 .addRoundTrip("byteint", "0", TINYINT, "CAST(0 AS TINYINT)")
                 .addRoundTrip("byteint", "127", TINYINT, "CAST(127 AS TINYINT)")
@@ -70,8 +101,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testSmallint()
-    {
+    public void testSmallint() {
         SqlDataTypeTest.create()
                 .addRoundTrip("smallint", "0", SMALLINT, "CAST(0 AS SMALLINT)")
                 .addRoundTrip("smallint", "32767", SMALLINT, "CAST(32767 AS SMALLINT)")
@@ -81,8 +111,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testInteger()
-    {
+    public void testInteger() {
         SqlDataTypeTest.create()
                 .addRoundTrip("integer", "0", INTEGER, "0")
                 .addRoundTrip("integer", "2147483647", INTEGER, "2147483647")
@@ -92,8 +121,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testBigint()
-    {
+    public void testBigint() {
         SqlDataTypeTest.create()
                 .addRoundTrip("bigint", "0", BIGINT, "CAST(0 AS BIGINT)")
                 .addRoundTrip("bigint", "9223372036854775807", BIGINT, "9223372036854775807")
@@ -103,8 +131,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testFloat()
-    {
+    public void testFloat() {
         SqlDataTypeTest.create()
                 .addRoundTrip("float", "0", DOUBLE, "CAST(0 AS DOUBLE)")
                 .addRoundTrip("real", "0", DOUBLE, "CAST(0 AS DOUBLE)")
@@ -122,8 +149,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testDecimal()
-    {
+    public void testDecimal() {
         SqlDataTypeTest.create()
                 .addRoundTrip("decimal(3, 0)", "0", createDecimalType(3, 0), "CAST('0' AS decimal(3, 0))")
                 .addRoundTrip("numeric(3, 0)", "0", createDecimalType(3, 0), "CAST('0' AS decimal(3, 0))")
@@ -156,8 +182,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testNumber()
-    {
+    public void testNumber() {
         SqlDataTypeTest.create()
                 .addRoundTrip("numeric(3)", "0", createDecimalType(3, 0), "CAST('0' AS decimal(3, 0))")
                 .addRoundTrip("number(5,2)", "0", createDecimalType(5, 2), "CAST('0' AS decimal(5, 2))")
@@ -168,8 +193,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testChar()
-    {
+    public void testChar() {
         SqlDataTypeTest.create()
                 .addRoundTrip("char(3)", "''", createCharType(3), "CAST('' AS char(3))")
                 .addRoundTrip("char(3)", "' '", createCharType(3), "CAST(' ' AS char(3))")
@@ -191,8 +215,7 @@ public class TestTeradataTypeMapping
             SqlDataTypeTest.create()
                     .addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
                     .execute(getQueryRunner(), teradataJDBCCreateAndInsert("chart"));
-        }
-        else {
+        } else {
             // Error on truncation
             assertThatThrownBy(() ->
                     SqlDataTypeTest.create().addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
@@ -208,8 +231,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testVarchar()
-    {
+    public void testVarchar() {
         SqlDataTypeTest.create().addRoundTrip("varchar(32)", "''", createVarcharType(32), "CAST('' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "' '", createVarcharType(32), "CAST(' ' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "' '", createVarcharType(32), "CAST(' ' AS varchar(32))")
@@ -230,8 +252,7 @@ public class TestTeradataTypeMapping
             // truncation
             SqlDataTypeTest.create()
                     .addRoundTrip("varchar(3)", "'ABCD'", createVarcharType(3), "CAST('ABCD' AS varchar(3))").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchart"));
-        }
-        else {
+        } else {
             // Error on truncation
             assertThatThrownBy(() ->
                     SqlDataTypeTest.create()
@@ -248,8 +269,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testByte()
-    {
+    public void testByte() {
         SqlDataTypeTest.create()
                 .addRoundTrip("byte(3)", "'000000'XB", VARBINARY, "X'000000'")
                 .addRoundTrip("byte(3)", "'012345'XB", VARBINARY, "X'012345'")
@@ -265,8 +285,7 @@ public class TestTeradataTypeMapping
             SqlDataTypeTest.create()
                     .addRoundTrip("byte(3)", "'01234567'XB", VARBINARY, "X'012345'")
                     .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bytet"));
-        }
-        else {
+        } else {
             // Error on truncation
             assertThatThrownBy(() ->
                     SqlDataTypeTest.create().addRoundTrip("byte(3)", "'01234567'XB", VARBINARY, "X'012345'")
@@ -282,8 +301,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testVarbyte()
-    {
+    public void testVarbyte() {
         SqlDataTypeTest.create().
                 addRoundTrip("varbyte(32)", "'000000'XB", VARBINARY, "X'000000'")
                 .addRoundTrip("varbyte(32)", "'012345'XB", VARBINARY, "X'012345'")
@@ -297,8 +315,7 @@ public class TestTeradataTypeMapping
         if (tmode.equals("TERA")) {
             // truncation
             SqlDataTypeTest.create().addRoundTrip("varbyte(3)", "'01234567'XB", VARBINARY, "X'012345'").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbytet"));
-        }
-        else {
+        } else {
             // Error on truncation
             assertThatThrownBy(() ->
                     SqlDataTypeTest.create().addRoundTrip("varbyte(3)", "'01234567'XB", VARBINARY, "X'012345'").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbytet")))
@@ -312,8 +329,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testDate()
-    {
+    public void testDate() {
         SqlDataTypeTest.create()
                 .addRoundTrip("date", "DATE '0001-01-01'", DATE, "DATE '0001-01-01'")
                 .addRoundTrip("date", "DATE '0012-12-12'", DATE, "DATE '0012-12-12'")
@@ -335,8 +351,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testTime()
-    {
+    public void testTime() {
         SqlDataTypeTest.create().addRoundTrip("time", "time '00:00:00'", createTimeType(6), "CAST('00:00:00' AS TIME(6))")
                 .addRoundTrip("time(0)", "time '00:00:00'", createTimeType(0), "CAST('00:00:00' AS TIME(0))")
                 .addRoundTrip("time(2)", "time '00:00:00.00'", createTimeType(2), "CAST('00:00:00.00' AS TIME(2))")
@@ -350,8 +365,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testTimeWithTimeZone()
-    {
+    public void testTimeWithTimeZone() {
         SqlDataTypeTest.create()
                 .addRoundTrip("time(0) with time zone", "time '00:00:00-00:00'", createTimeWithTimeZoneType(0), "CAST('00:00:00-00:00' AS TIME(0) WITH TIME ZONE)")
                 .addRoundTrip("time(0) with time zone", "time '23:59:59-00:00'", createTimeWithTimeZoneType(0), "CAST('23:59:59-00:00' AS TIME(0) WITH TIME ZONE)")
@@ -362,8 +376,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testTimestamp()
-    {
+    public void testTimestamp() {
         SqlDataTypeTest.create()
                 .addRoundTrip("timestamp", "timestamp '0001-01-01 00:00:00'", createTimestampType(6), "CAST('0001-01-01 00:00:00' AS TIMESTAMP(6))")
                 .addRoundTrip("timestamp", "timestamp '0001-01-01 23:59:59.999999'", createTimestampType(6), "CAST('0001-01-01 23:59:59.999999' AS TIMESTAMP(6))")
@@ -377,8 +390,7 @@ public class TestTeradataTypeMapping
     }
 
     @Test
-    public void testJson()
-    {
+    public void testJson() {
         SqlDataTypeTest.create()
                 .addRoundTrip("byteint", "0", TINYINT, "CAST(0 AS TINYINT)")
                 .addRoundTrip("JSON", "'{\"name\": \"Alice\", \"age\": 30}'", JSON, "JSON '{\"name\": \"Alice\", \"age\": 30}'")
