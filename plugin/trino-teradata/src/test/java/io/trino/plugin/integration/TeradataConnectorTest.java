@@ -129,6 +129,8 @@ public final class TeradataConnectorTest
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
+    // Validates that Teradata enforces its specific 128-character schema name length limit
+    // Overridden to check Teradata's custom error message format for schema naming constraints
     @Override
     protected void verifySchemaNameLengthFailurePermissible(Throwable e) {
         assertThat(e).hasMessage(format("Schema name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
@@ -139,6 +141,8 @@ public final class TeradataConnectorTest
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
+    // Validates that Teradata enforces its specific 128-character column name length limit
+    // Overridden to check Teradata's custom error message format for column naming constraints
     @Override
     protected void verifyColumnNameLengthFailurePermissible(Throwable e) {
         assertThat(e).hasMessageMatching(format("Column name must be shorter than or equal to '%s' characters but got '%s': '.*'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
@@ -156,11 +160,15 @@ public final class TeradataConnectorTest
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
+    // Validates that Teradata enforces its specific 128-character table name length limit
+    // Overridden to check Teradata's custom error message format instead of generic JDBC errors
     @Override
     protected void verifyTableNameLengthFailurePermissible(Throwable e) {
         assertThat(e).hasMessageMatching(format("Table name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
     }
 
+    // Tests DISTINCT with LIMIT functionality on Teradata
+    // Overridden to ensure proper query execution with Teradata-specific SQL syntax
     @Override
     @Test
     public void testDistinctLimit() {
@@ -275,6 +283,8 @@ public final class TeradataConnectorTest
         assertThat(this.query("SELECT nationkey, name, regionkey FROM nation WHERE nationkey > 0 AND (nationkey - regionkey) % (regionkey - 1) = 2")).failure().hasMessageContaining("Operation Error");
     }
 
+    // Tests CREATE TABLE AS SELECT functionality with Teradata syntax
+    // Overridden to handle Teradata's specific "WITH DATA" syntax for table creation
     @Override
     @Test
     public void testCreateTableAsSelect() {
@@ -557,6 +567,8 @@ public final class TeradataConnectorTest
         table.close();
     }
 
+    // Tests timestamp with timezone cast to timestamp predicate functionality
+    // Overridden because Teradata handles timezone conversions differently than standard SQL
     @Override
     @Test
     public void testTimestampWithTimeZoneCastToTimestampPredicate() {
@@ -593,6 +605,8 @@ public final class TeradataConnectorTest
         table.close();
     }
 
+    // Tests join pushdown with long column identifiers
+    // Overridden to handle Teradata's specific identifier length limits and naming constraints
     @Override
     @Test
     public void testJoinPushdownWithLongIdentifiers() {
@@ -606,6 +620,8 @@ public final class TeradataConnectorTest
         }
     }
 
+    // Filters data mapping test data for Teradata compatibility
+    // Overridden to exclude data types that Teradata doesn't support or handles differently
     @Override
     protected Optional<DataMappingTestSetup> filterDataMappingSmokeTestData(DataMappingTestSetup dataMappingTestSetup) {
         String typeName = dataMappingTestSetup.getTrinoTypeName();
@@ -709,6 +725,8 @@ public final class TeradataConnectorTest
         Assumptions.abort("Skipping as connector does not support creating table with negative date");
     }
 
+    // Creates CTAS queries with proper session and row count validation
+    // Overridden to use Teradata's "WITH DATA" syntax for CREATE TABLE AS SELECT statements
     @Override
     protected void assertCreateTableAsSelect(Session session, String query, String expectedQuery, String rowCountQuery) {
         String table = "test_ctas_" + TestingNames.randomNameSuffix();
@@ -726,6 +744,8 @@ public final class TeradataConnectorTest
                 .build();
     }
 
+    // Creates new Trino test tables with proper schema handling
+    // Overridden to handle Teradata's schema.table naming format and table creation syntax
     @Override
     protected TestTable newTrinoTable(String namePrefix, @Language("SQL") String tableDefinition, List<String> rowsToInsert) {
         String tableName = "";
