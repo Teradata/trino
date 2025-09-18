@@ -47,9 +47,8 @@ public class TestTeradataTypeMapping
     protected TestingTeradataServer database;
     protected String envName;
 
-    public TestTeradataTypeMapping(String envName) {
-        this.envName = envName;
-        ClearScapeEnvironmentUtils.generateUniqueEnvName(TestTeradataTypeMapping.class);
+    public TestTeradataTypeMapping() {
+        this.envName = ClearScapeEnvironmentUtils.generateUniqueEnvName(TestTeradataTypeMapping.class);
     }
 
     static String padBinaryString(String prefix, int length) {
