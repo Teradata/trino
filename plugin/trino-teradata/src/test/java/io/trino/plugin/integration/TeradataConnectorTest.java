@@ -119,6 +119,15 @@ public final class TeradataConnectorTest
         };
     }
 
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        database = new TestingTeradataServer(ClearScapeEnvironmentUtils.generateUniqueEnvName(this.getClass()));
+        // Register this specific instance for this test class
+        return TeradataQueryRunner.builder(database).setInitialTables(REQUIRED_TPCH_TABLES).build();
+    }
+
     @AfterAll
     public void cleanupTestDatabase() {
         database.close();
