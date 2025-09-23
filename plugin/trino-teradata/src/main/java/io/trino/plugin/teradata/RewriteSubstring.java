@@ -41,7 +41,6 @@ public class RewriteSubstring
 {
     private static final Capture<ConnectorExpression> VALUE = newCapture();
     private static final Capture<ConnectorExpression> START = newCapture();
-    private static final Capture<ConnectorExpression> LENGTH = newCapture();
 
     public static final FunctionName SUBSTRING_FUNCTION_NAME = new FunctionName("substring");
 
