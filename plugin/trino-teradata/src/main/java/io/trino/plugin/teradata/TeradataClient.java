@@ -241,7 +241,13 @@ public class TeradataClient
      * @param remoteQueryModifier optional modifier for remote queries
      */
     @Inject
-    public TeradataClient(BaseJdbcConfig config, TeradataConfig teradataConfig, JdbcStatisticsConfig statisticsConfig, ConnectionFactory connectionFactory, QueryBuilder queryBuilder, TypeManager typeManager, IdentifierMapping identifierMapping, RemoteQueryModifier remoteQueryModifier)
+    public TeradataClient(BaseJdbcConfig config,
+                          TeradataConfig teradataConfig,
+                          JdbcStatisticsConfig statisticsConfig,
+                          ConnectionFactory connectionFactory,
+                          QueryBuilder queryBuilder, TypeManager typeManager,
+                          IdentifierMapping identifierMapping,
+                          RemoteQueryModifier remoteQueryModifier)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, remoteQueryModifier, true);
         this.jsonType = typeManager.getType(new TypeSignature(JSON));
