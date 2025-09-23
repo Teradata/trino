@@ -229,16 +229,6 @@ public class TeradataClient
 
     private ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
 
-    /**
-     * Constructs a new TeradataClient instance.
-     *
-     * @param config base JDBC configuration
-     * @param teradataConfig Teradata-specific configuration
-     * @param connectionFactory factory to create JDBC connections
-     * @param queryBuilder query builder for SQL queries
-     * @param identifierMapping mapping for identifiers such as column names
-     * @param remoteQueryModifier optional modifier for remote queries
-     */
     @Inject
     public TeradataClient(BaseJdbcConfig config,
                           TeradataConfig teradataConfig,
@@ -936,13 +926,6 @@ public class TeradataClient
         return Optional.empty();
     }
 
-    /**
-     * Maps a JDBC NUMERIC/DECIMAL type to a Trino DecimalType column mapping.
-     * Handles precision and scale constraints.
-     *
-     * @param typeHandle the JDBC type handle
-     * @return Optional containing the ColumnMapping for the decimal type
-     */
     private Optional<ColumnMapping> numberMapping(JdbcTypeHandle typeHandle)
     {
         int precision = typeHandle.requiredColumnSize();
