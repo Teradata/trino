@@ -961,34 +961,50 @@ public class TeradataClient
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
         return switch (type) {
-            case Type t when t.equals(jsonType) -> WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction());
-            case Type t when t == TINYINT -> WriteMapping.longMapping("smallint", tinyintWriteFunction());
-            case Type t when t == SMALLINT -> WriteMapping.longMapping("smallint", smallintWriteFunction());
-            case Type t when t == INTEGER -> WriteMapping.longMapping("integer", integerWriteFunction());
-            case Type t when t == BIGINT -> WriteMapping.longMapping("bigint", bigintWriteFunction());
-            case Type t when t == REAL -> WriteMapping.longMapping("FLOAT", realWriteFunction());
-            case Type t when t == DOUBLE -> WriteMapping.doubleMapping("double precision", doubleWriteFunction());
-            case Type t when VARBINARY.equals(t) -> WriteMapping.sliceMapping("blob", varbinaryWriteFunction());
-            case Type t when t == DATE -> WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
-            case DecimalType decimalType -> {
-                String dataType = format("decimal(%s, %s)", decimalType.getPrecision(), decimalType.getScale());
-                if (decimalType.isShort()) {
-                    yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalType));
+            case Type typeInstance when typeInstance.equals(jsonType) ->
+                    WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction());
+            case Type typeInstance when typeInstance == TINYINT ->
+                    WriteMapping.longMapping("smallint", tinyintWriteFunction());
+            case Type typeInstance when typeInstance == SMALLINT ->
+                    WriteMapping.longMapping("smallint", smallintWriteFunction());
+            case Type typeInstance when typeInstance == INTEGER ->
+                    WriteMapping.longMapping("integer", integerWriteFunction());
+            case Type typeInstance when typeInstance == BIGINT ->
+                    WriteMapping.longMapping("bigint", bigintWriteFunction());
+            case Type typeInstance when typeInstance == REAL ->
+                    WriteMapping.longMapping("FLOAT", realWriteFunction());
+            case Type typeInstance when typeInstance == DOUBLE ->
+                    WriteMapping.doubleMapping("double precision", doubleWriteFunction());
+            case Type typeInstance when VARBINARY.equals(typeInstance) ->
+                    WriteMapping.sliceMapping("blob", varbinaryWriteFunction());
+            case Type typeInstance when typeInstance == DATE ->
+                    WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
+            case DecimalType decimalTypeInstance -> {
+                String dataType = String.format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
+                if (decimalTypeInstance.isShort()) {
+                    yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalTypeInstance));
                 }
-                yield WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalType));
+                yield WriteMapping.objectMapping(dataType, longDecimalWriteFunction(decimalTypeInstance));
             }
-            case CharType charType -> WriteMapping.sliceMapping("char(" + charType.getLength() + ")", charWriteFunction());
-            case VarcharType varcharType -> {
-                String dataType = varcharType.isUnbounded() ? "clob" : "varchar(" + varcharType.getBoundedLength() + ")";
+            case CharType charTypeInstance ->
+                    WriteMapping.sliceMapping("char(" + charTypeInstance.getLength() + ")", charWriteFunction());
+            case VarcharType varcharTypeInstance -> {
+                String dataType = varcharTypeInstance.isUnbounded()
+                        ? "clob"
+                        : "varchar(" + varcharTypeInstance.getBoundedLength() + ")";
                 yield WriteMapping.sliceMapping(dataType, varcharWriteFunction());
             }
-            case TimeType timeType -> {
-                verify(timeType.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
-                yield WriteMapping.longMapping(format("time(%s)", timeType.getPrecision()), timeWriteFunction(timeType.getPrecision()));
+            case TimeType timeTypeInstance -> {
+                verify(timeTypeInstance.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
+                yield WriteMapping.longMapping(
+                        String.format("time(%s)", timeTypeInstance.getPrecision()),
+                        timeWriteFunction(timeTypeInstance.getPrecision()));
             }
-            case TimestampType timestampType -> {
-                verify(timestampType.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
-                yield WriteMapping.longMapping(format("timestamp(%s)", timestampType.getPrecision()), timestampWriteFunction(timestampType));
+            case TimestampType timestampTypeInstance -> {
+                verify(timestampTypeInstance.getPrecision() <= TERADATA_MAX_SUPPORTED_TIMESTAMP_PRECISION);
+                yield WriteMapping.longMapping(
+                        String.format("timestamp(%s)", timestampTypeInstance.getPrecision()),
+                        timestampWriteFunction(timestampTypeInstance));
             }
             default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
         };
