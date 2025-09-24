@@ -738,6 +738,7 @@ public class TeradataClient
                 connectorExpressionRewriter,
                 com.google.common.collect.ImmutableSet.<ProjectFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
                         .add(new RewriteLowerFunction())
+                        .add(new RewriteUpperFunction())
                         .build());
     }
 
@@ -750,6 +751,7 @@ public class TeradataClient
                 .add(new RewriteLikeEscapeWithCaseSensitivity())
                 .add(new RewriteSubstring())
                 .add(new RewriteLower())
+                .add(new RewriteUpper())
                 .withTypeClass("integer_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint"))
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
                 .withTypeClass("string_type", ImmutableSet.of("varchar"))

@@ -872,4 +872,94 @@ public final class TeradataConnectorTest
             assertQuery(format("SELECT array_data FROM %s WHERE id = 3", table.getName()), "VALUES 'ARRAY[null, null, null]'");
         }
     }
+
+    @Test
+    public void testLowerSelectProjection()
+    {
+        assertQuery(
+                "SELECT nationkey, LOWER(name) AS lower_name FROM teradata.trino.nation ORDER BY nationkey LIMIT 5",
+                "VALUES " +
+                        "(0, 'algeria'), " +
+                        "(1, 'argentina'), " +
+                        "(2, 'brazil'), " +
+                        "(3, 'canada'), " +
+                        "(4, 'egypt')");
+    }
+
+    @Test
+    public void testUpperSelectProjection()
+    {
+        assertQuery(
+                "SELECT nationkey, UPPER(name) AS upper_name FROM teradata.trino.nation ORDER BY nationkey LIMIT 5",
+                "VALUES " +
+                        "(0, 'ALGERIA'), " +
+                        "(1, 'ARGENTINA'), " +
+                        "(2, 'BRAZIL'), " +
+                        "(3, 'CANADA'), " +
+                        "(4, 'EGYPT')");
+    }
+
+    @Test
+    public void testSubstringSelectProjection()
+    {
+        assertQuery(
+                "SELECT SUBSTRING(name, 1, 2) AS name_prefix FROM teradata.trino.nation WHERE nationkey IN (0, 1, 2) ORDER BY nationkey",
+                "VALUES 'AL', 'AR', 'BR'");
+    }
+
+    @Test
+    public void testLowerInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE LOWER(name) = 'algeria'",
+                "VALUES ('ALGERIA', 0, 0)");
+    }
+
+    @Test
+    public void testUpperInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE UPPER(name) = 'BRAZIL'",
+                "VALUES ('BRAZIL', 1, 2)");
+    }
+
+    @Test
+    public void testSubstringTwoParamsInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE SUBSTRING(name, 1, 2) = 'AR'",
+                "VALUES ('ARGENTINA', 1, 1)");
+    }
+
+    @Test
+    public void testSubstringOneParamInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE SUBSTRING(name, 1) = 'CANADA'",
+                "VALUES ('CANADA', 1, 3)");
+    }
+
+    @Test
+    public void testNestedUpperSubstringInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE UPPER(SUBSTRING(name, 1, 1)) = 'F'",
+                "SELECT name, regionkey, nationkey FROM nation WHERE name LIKE 'F%'");
+    }
+
+    @Test
+    public void testNestedLowerSubstringInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE LOWER(SUBSTRING(name, 1, 3)) = 'uni'",
+                "SELECT name, regionkey, nationkey FROM nation WHERE LOWER(SUBSTRING(name, 1, 3)) = 'uni'");
+    }
+
+    @Test
+    public void testNestedSubstringUpperInWhereClause()
+    {
+        assertQuery(
+                "SELECT name, regionkey, nationkey FROM teradata.trino.nation WHERE SUBSTRING(UPPER(name), 1, 2) IN ('BR', 'FR', 'GE')",
+                "SELECT name, regionkey, nationkey FROM nation WHERE SUBSTRING(UPPER(name), 1, 2) IN ('BR', 'FR', 'GE')");
+    }
 }
