@@ -16,7 +16,6 @@ package io.trino.plugin.integration;
 
 import io.trino.plugin.integration.util.TeradataTestConstants;
 import io.trino.plugin.teradata.LogonMechanism;
-import org.apache.commons.lang3.StringUtils;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -41,7 +40,7 @@ public class DatabaseConfigFactory
         }
         AuthenticationConfig authConfig = createAuthConfig(userName, password);
         LogonMechanism logMech = LogonMechanism.fromString(getEnvVar("logMech", DEFAULT_LOG_MECH));
-        String databaseName = StringUtils.replace(envName, "-", "_");
+        String databaseName = envName.replace("-", "_");
         return DatabaseConfig.builder()
                 .hostName(hostName)
                 .databaseName(databaseName)
