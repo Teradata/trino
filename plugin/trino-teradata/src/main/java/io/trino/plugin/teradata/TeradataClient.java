@@ -210,8 +210,8 @@ import static java.util.stream.Collectors.toMap;
 public class TeradataClient
         extends BaseJdbcClient
 {
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
 
+    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
     private static final long MAX_FALLBACK_NDV = 1_000_000L;
 
     private static final double DEFAULT_FALLBACK_FRACTION = 0.1;
@@ -229,6 +229,7 @@ public class TeradataClient
     private AggregateFunctionRewriter<JdbcExpression, ?> aggregateFunctionRewriter;
 
     private ProjectFunctionRewriter<JdbcExpression, ParameterizedExpression> projectFunctionRewriter;
+
 
     @Inject
     public TeradataClient(BaseJdbcConfig config,
@@ -747,6 +748,7 @@ public class TeradataClient
                 .add(new RewriteIn())
                 .add(new RewriteLikeWithCaseSensitivity())
                 .add(new RewriteLikeEscapeWithCaseSensitivity())
+                .add(new RewriteSubstring())
                 .add(new RewriteLower())
                 .withTypeClass("integer_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint"))
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
