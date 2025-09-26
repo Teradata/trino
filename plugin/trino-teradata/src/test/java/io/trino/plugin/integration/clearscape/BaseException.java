@@ -11,7 +11,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.trino.plugin.integration.clearscape;
 
 public class BaseException
@@ -19,38 +18,14 @@ public class BaseException
 {
     private final int statusCode;
 
-    private final String body;
-
-    private final String reason;
-
     public BaseException(int statusCode, String body)
     {
         super(body);
         this.statusCode = statusCode;
-        this.body = body;
-        this.reason = null;
-    }
-
-    public BaseException(int statusCode, String body, String reason)
-    {
-        super(body);
-        this.statusCode = statusCode;
-        this.body = body;
-        this.reason = reason;
     }
 
     public int getStatusCode()
     {
         return statusCode;
-    }
-
-    public String getBody()
-    {
-        return body;
-    }
-
-    public String getReason()
-    {
-        return reason;
     }
 }
