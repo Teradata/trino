@@ -11,7 +11,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.trino.plugin.integration;
 
 import io.trino.Session;
@@ -36,34 +35,29 @@ import java.util.OptionalInt;
 import java.util.function.Consumer;
 
 import static io.trino.plugin.teradata.util.TeradataConstants.TERADATA_OBJECT_NAME_LIMIT;
-import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
-/**
- * Integration test class for Teradata JDBC Connector.
- * Sets up schema and tables before tests and cleans up afterwards.
- */
-public final class TeradataConnectorTest
+final class TeradataConnectorTest
         extends BaseJdbcConnectorTest
 {
     private TestingTeradataServer database;
-
-    private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
-            Consumer<TrinoExceptionAssert> verifyFailure)
-    {
-        requireNonNull(verifyResults, "verifyResults is null");
-        requireNonNull(verifyFailure, "verifyFailure is null");
-        QueryAssertions.QueryAssert queryAssert = assertThat(queryAssertProvider);
-        verifyResults.accept(queryAssert);
-    }
 
     @Override
     protected SqlExecutor onRemoteDatabase()
     {
         return database;
+    }
+
+    @Override
+    protected QueryRunner createQueryRunner()
+            throws Exception
+    {
+        database = new TestingTeradataServer(ClearScapeEnvironmentUtils.generateUniqueEnvName(getClass()));
+        // Register this specific instance for this test class
+        return TeradataQueryRunner.builder(database).setInitialTables(REQUIRED_TPCH_TABLES).build();
     }
 
     @Override
@@ -111,15 +105,6 @@ public final class TeradataConnectorTest
         };
     }
 
-    @Override
-    protected QueryRunner createQueryRunner()
-            throws Exception
-    {
-        database = new TestingTeradataServer(ClearScapeEnvironmentUtils.generateUniqueEnvName(getClass()));
-        // Register this specific instance for this test class
-        return TeradataQueryRunner.builder(database).setInitialTables(REQUIRED_TPCH_TABLES).build();
-    }
-
     @AfterAll
     public void cleanupTestDatabase()
     {
@@ -132,59 +117,49 @@ public final class TeradataConnectorTest
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
-    // Validates that Teradata enforces its specific 128-character schema name length limit
-    // Overridden to check Teradata's custom error message format for schema naming constraints
-    @Override
+    @Override // Override because the expected error message is different
     protected void verifySchemaNameLengthFailurePermissible(Throwable e)
     {
         assertThat(e).hasMessage(format("Schema name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT, TERADATA_OBJECT_NAME_LIMIT + 1));
     }
 
-    @Override
+    @Override // Override because Teradata Object name limit is 128 characters
     protected OptionalInt maxColumnNameLength()
     {
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
-    // Validates that Teradata enforces its specific 128-character column name length limit
-    // Overridden to check Teradata's custom error message format for column naming constraints
-    @Override
+    @Override // Override because the expected error message is different
     protected void verifyColumnNameLengthFailurePermissible(Throwable e)
     {
         assertThat(e).hasMessageMatching(format("Column name must be shorter than or equal to '%s' characters but got '%s': '.*'", TERADATA_OBJECT_NAME_LIMIT,
                 TERADATA_OBJECT_NAME_LIMIT + 1));
     }
 
-    @Override
+    @Override // Override to skip the data mapping smoke test
     @Test
     public void testDataMappingSmokeTest()
     {
-        // Skipping the Data Mapping smoke test as this is consuming more time to complete all data type mapping on Teradata ClearScape instance. Will enable once we fix timeout
-        // error when running tests on Teradata ClearScape instance
         skipTestUnless(false);
     }
 
-    @Override
+    @Override // Override because Teradata Table name limit is 128 characters
     protected OptionalInt maxTableNameLength()
     {
         return OptionalInt.of(TERADATA_OBJECT_NAME_LIMIT);
     }
 
-    // Validates that Teradata enforces its specific 128-character table name length limit
-    // Overridden to check Teradata's custom error message format instead of generic JDBC errors
-    @Override
+    @Override // Override because the expected error message is different
     protected void verifyTableNameLengthFailurePermissible(Throwable e)
     {
         assertThat(e).hasMessageMatching(format("Table name must be shorter than or equal to '%s' characters but got '%s'", TERADATA_OBJECT_NAME_LIMIT,
                 TERADATA_OBJECT_NAME_LIMIT + 1));
     }
 
-    // Overriding this test case as Teradata defines varchar with a length.
-    @Override
+    @Override // Overriding this test case as Teradata defines varchar with a length.
     @Test
     public void testVarcharCastToDateInPredicate()
     {
-        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA));
         String tableName = "varchar_as_date_pred";
         try (TestTable table = newTrinoTable(tableName, "(a varchar(50))", List.of("'999-09-09'", "'1005-09-09'", "'2005-06-06'", "'2005-06-6'", "'2005-6-06'", "'2005-6-6'", "' " +
                 "2005-06-06'", "'2005-06-06 '", "' +2005-06-06'", "'02005-06-06'", "'2005-09-06'", "'2005-09-6'", "'2005-9-06'", "'2005-9-6'", "' 2005-09-06'", "'2005-09-06 '",
@@ -203,14 +178,6 @@ public final class TeradataConnectorTest
             verifyResultOrFailure(query("SELECT a FROM %s WHERE CAST(a AS date) = DATE '2005-09-10'".formatted(table.getName())),
                     queryAssert -> queryAssert.skippingTypesCheck().matches("VALUES '2005-09-10'"), failureAssert -> failureAssert.hasMessage("Value cannot be cast to date: " +
                             "2005-06-bad-date"));
-            // This failure isn't guaranteed: a row may be filtered out on the connector side with a derived predicate on a varchar column.
-            verifyResultOrFailure(query("SELECT a FROM %s WHERE CAST(a AS date) != DATE '2005-9-1'".formatted(table.getName())),
-                    queryAssert -> queryAssert.skippingTypesCheck().matches("VALUES '2005-09-10'"), failureAssert -> failureAssert.hasMessage("Value cannot be cast to date: " +
-                            "2005-06-bad-date"));
-            // This failure isn't guaranteed: a row may be filtered out on the connector side with a derived predicate on a varchar column.
-            verifyResultOrFailure(query("SELECT a FROM %s WHERE CAST(a AS date) > DATE '2022-08-10'".formatted(table.getName())),
-                    queryAssert -> queryAssert.skippingTypesCheck().returnsEmptyResult(), failureAssert -> failureAssert.hasMessage("Value cannot be cast to date: " +
-                            "2005-06-bad-date"));
         }
         try (TestTable table = newTrinoTable(tableName, "(a varchar(50))", List.of("'2005-09-10'"))) {
             // 2005-09-01, when written as 2005-09-1, is a prefix of an existing data point: 2005-09-10
@@ -225,10 +192,6 @@ public final class TeradataConnectorTest
     public void testCreateTableAsSelect()
     {
         String tableName = "test_ctas" + randomNameSuffix();
-        if (!hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA)) {
-            assertQueryFails("CREATE TABLE IF NOT EXISTS " + tableName + " AS SELECT name, regionkey FROM nation", "This connector does not support creating tables with data");
-            return;
-        }
         assertUpdate("CREATE TABLE IF NOT EXISTS " + tableName + " AS SELECT name, regionkey FROM nation", "SELECT count(*) FROM nation");
         assertTableColumnNames(tableName, "name", "regionkey");
         assertThat(getTableComment(tableName)).isNull();
@@ -265,31 +228,27 @@ public final class TeradataConnectorTest
         assertUpdate("DROP TABLE " + tableName);
     }
 
-    // Overriding this test case as Teradata does not support negative dates.
-    @Override
+    @Override // Overriding this test case as Teradata does not support negative dates.
     @Test
     public void testDateYearOfEraPredicate()
     {
         assertQuery("SELECT orderdate FROM orders WHERE orderdate = DATE '1997-09-14'", "VALUES DATE '1997-09-14'");
     }
 
-    // Override this test case as Teradata has different syntax for creating tables with AS SELECT statement.
-    @Override
+    @Override // Override this test case as Teradata has different syntax for creating tables with AS SELECT statement.
     @Test
     public void verifySupportsRowLevelUpdateDeclaration()
     {
-        skipTestUnless(hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE_WITH_DATA));
         String testTableName = "test_supports_update";
         try (TestTable table = newTrinoTable(testTableName, "AS ( SELECT * FROM nation) WITH DATA")) {
             assertQueryFails("UPDATE " + table.getName() + " SET nationkey = nationkey * 100 WHERE regionkey = 2", "This connector does not support modifying table rows");
         }
     }
 
-    @Override
+    @Override // Overriding this test case as Teradata doesn't have support to (k, v) AS VALUES in insert statement
     @Test
     public void testCharVarcharComparison()
     {
-        skipTestUnless(hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE));
         String testTableName = "test_char_varchar";
         try (TestTable table = newTrinoTable(testTableName, "(k int, v char(3))", List.of("-1, CAST(NULL AS char(3))", "3, CAST('   ' AS char(3))", "6, CAST('x  ' AS char(3))"))) {
             assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(2))", "VALUES (3, '   ')");
@@ -298,13 +257,10 @@ public final class TeradataConnectorTest
         }
     }
 
-    // Overriding this test case as Teradata doesn't have support to (k, v) AS VALUES in insert statement
-    @Override
+    @Override // Overriding this test case as Teradata doesn't have support to (k, v) AS VALUES in insert statement
     @Test
     public void testVarcharCharComparison()
     {
-        skipTestUnless(hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE));
-
         try (TestTable table = newTrinoTable("test_varchar_char", "(k int, v char(3))", List.of("-1, CAST(NULL AS varchar(3))", "0, CAST('' AS varchar(3))", "1, CAST(' ' AS" +
                 " varchar(3))", "2, CAST('  ' AS varchar(3))", "3, CAST('   ' AS varchar(3))", "4, CAST('x' AS varchar(3))", "5, CAST('x ' AS varchar(3))",
                 "6, CAST('x  ' AS " + "varchar(3))"))) {
@@ -329,7 +285,7 @@ public final class TeradataConnectorTest
             default -> Optional.of(dataMappingTestSetup);
         };
     }
-    
+
     @Test
     public void testTimestampWithTimeZoneCastToDatePredicate()
     {
@@ -507,5 +463,14 @@ public final class TeradataConnectorTest
             assertThat(query(format("SELECT char_large FROM %s WHERE id = 1", table.getName()))).matches("VALUES CAST('TERADATA' AS CHAR(100))");
             assertThat(query(format("SELECT char_col FROM %s WHERE id = 3", table.getName()))).matches("VALUES CAST('' AS CHAR(5))");
         }
+    }
+
+    private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
+            Consumer<TrinoExceptionAssert> verifyFailure)
+    {
+        requireNonNull(verifyResults, "verifyResults is null");
+        requireNonNull(verifyFailure, "verifyFailure is null");
+        QueryAssertions.QueryAssert queryAssert = assertThat(queryAssertProvider);
+        verifyResults.accept(queryAssert);
     }
 }

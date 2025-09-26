@@ -1,3 +1,5 @@
+package io.trino.plugin.integration.clearscape;
+
 /*
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -11,38 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
-package io.trino.plugin.integration.clearscape;
-
-public enum Region
-{
-    US_CENTRAL("us-central"),
-
-    US_EAST("us-east"),
-
-    US_WEST("us-west"),
-
-    SOUTHAMERICA_EAST("southamerica-east"),
-
-    EUROPE_WEST("europe-west"),
-
-    ASIA_SOUTH("asia-south"),
-
-    ASIA_NORTHEAST("asia-northeast"),
-
-    ASIA_SOUTHEAST("asia-southeast"),
-
-    AUSTRALIA_SOUTHEAST("australia-southeast");
-
-    private final String regionName;
-
-    Region(String regionName)
-    {
-        this.regionName = regionName;
-    }
-
-    public String getRegionName()
-    {
-        return regionName;
-    }
+public enum Region {
+    US_CENTRAL,
+    US_EAST,
+    US_WEST,
+    SOUTHAMERICA_EAST,
+    EUROPE_WEST,
+    ASIA_SOUTH,
+    ASIA_NORTHEAST,
+    ASIA_SOUTHEAST,
+    AUSTRALIA_SOUTHEAST
 }

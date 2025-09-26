@@ -108,17 +108,19 @@ public class TeradataClient
     private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
 
     @Inject
-    public TeradataClient(BaseJdbcConfig config,
+    public TeradataClient(
+            BaseJdbcConfig config,
             TeradataConfig teradataConfig,
             JdbcStatisticsConfig statisticsConfig,
             ConnectionFactory connectionFactory,
-            QueryBuilder queryBuilder, TypeManager typeManager,
+            QueryBuilder queryBuilder,
+            TypeManager typeManager,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier remoteQueryModifier)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, remoteQueryModifier, true);
-        jsonType = typeManager.getType(new TypeSignature(JSON));
-        teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
+        this.jsonType = typeManager.getType(new TypeSignature(JSON));
+        this.teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
     }
 
     private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
@@ -392,7 +394,6 @@ public class TeradataClient
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
         return switch (type) {
-            case Type typeInstance when typeInstance.equals(jsonType) -> WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction());
             case Type typeInstance when typeInstance == TINYINT -> WriteMapping.longMapping("smallint", tinyintWriteFunction());
             case Type typeInstance when typeInstance == SMALLINT -> WriteMapping.longMapping("smallint", smallintWriteFunction());
             case Type typeInstance when typeInstance == INTEGER -> WriteMapping.longMapping("integer", integerWriteFunction());
