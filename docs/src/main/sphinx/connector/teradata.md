@@ -13,16 +13,15 @@ data between different systems like Teradata and Hive, or between different Tera
 To connect to Teradata, you need:
 
 - Teradata Database
-- Network access from the Trino coordinator and workers to Teradata. Port 1025
-  is the default port
+- Network access from the Trino coordinator and workers to Teradata. Port 
+  1025 is the default port
 
 ## Configuration
 
 To configure the Teradata connector, create a catalog properties file in
 `etc/catalog` named, for example, `teradata.properties`, to mount the Teradata
-connector as the `teradata`
-catalog. Create the file with the following contents, replacing the connection
-properties as appropriate for your setup:
+connector as the `teradata` catalog. Create the file with the following 
+contents, replacing the connection properties as appropriate for your setup:
 
 ```properties
 connector.name=teradata
@@ -35,14 +34,14 @@ The `connection-url` defines the connection information and parameters to pass
 to the Teradata JDBC driver. The supported parameters for the URL are 
 available in the 
 [Teradata JDBC documentation](https://teradata-docs.s3.amazonaws.com/doc/connectivity/jdbc/reference/current/jdbcug_chapter_2.html#BABJIHBJ).
-For example, the following `connection-url` configures character encoding,
+For example, the following `connection-url` configures character encoding, 
 transaction mode, and authentication.
 
 ```properties
 connection-url=jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGMECH=TD2
 ```
 
-The `connection-user` and `connection-password` are typically required and
+The `connection-user` and `connection-password` are typically required and 
 determine the user credentials for the connection, often a service user.
 
 ### Connection security
