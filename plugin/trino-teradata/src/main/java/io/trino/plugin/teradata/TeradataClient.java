@@ -379,5 +379,4 @@ public class TeradataClient
                 varcharWriteFunction(),
                 isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
-
 }

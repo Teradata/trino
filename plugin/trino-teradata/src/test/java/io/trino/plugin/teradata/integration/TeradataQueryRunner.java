@@ -25,7 +25,6 @@ import io.trino.plugin.tpch.TpchPlugin;
 import io.trino.testing.DistributedQueryRunner;
 import io.trino.testing.QueryRunner;
 import io.trino.tpch.TpchTable;
-import org.assertj.core.api.ObjectAssert;
 import org.intellij.lang.annotations.Language;
 
 import java.util.List;
@@ -122,5 +121,4 @@ public final class TeradataQueryRunner
         log.info("======== SERVER STARTED ========");
         log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
     }
-
 }
