@@ -23,9 +23,4 @@ public class BaseException
         super(body);
         this.statusCode = statusCode;
     }
-
-    public int getStatusCode()
-    {
-        return statusCode;
-    }
 }

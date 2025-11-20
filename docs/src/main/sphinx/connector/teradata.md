@@ -19,7 +19,7 @@ To connect to Teradata, you need:
 ## Configuration
 
 To configure the Teradata connector, create a catalog properties file in
-`etc/catalog` named, for example, `teradata.properties`, to mount the Teradata
+`etc/catalog` named, for example, `example.properties`, to mount the Teradata
 connector as the `teradata` catalog. Create the file with the following 
 contents, replacing the connection properties as appropriate for your setup:
 
@@ -51,7 +51,7 @@ your data source, you can enable TLS between your cluster and the data
 source by appending parameters to the JDBC connection string set in the 
 connection-url catalog configuration property.
 
-For example, to specify SSLMODE:
+For example, to specify `SSLMODE`:
 
 ```properties
 connection-url=jdbc:teradata://example.teradata.com/SSLMODE=REQUIRED
@@ -144,28 +144,28 @@ No other types are supported.
 The Teradata connector provides a schema for every Teradata database. You can
 see the available Teradata databases by running SHOW SCHEMAS:
 
-```
+``` sql
 SHOW SCHEMAS FROM teradata;
 ```
 
 If you have a Teradata database named sales, you can view the tables in this
 database by running SHOW TABLES:
 
-```
+``` sql
 SHOW TABLES FROM teradata.sales;
 ```
 
 You can see a list of the columns in the orders table in the sales database
 using either of the following:
 
-```
+``` sql
 DESCRIBE teradata.sales.orders;
 SHOW COLUMNS FROM teradata.sales.orders;
 ```
 
 Finally, you can access the orders table in the sales database:
 
-```
+``` sql
 SELECT * FROM teradata.sales.orders;
 ```
 

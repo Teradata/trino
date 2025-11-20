@@ -113,31 +113,6 @@ public class TeradataClient
         this.teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
     }
 
-    private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
-    {
-        if (charLength > CharType.MAX_LENGTH) {
-            return varcharColumnMapping(charLength, isCaseSensitive);
-        }
-        CharType charType = createCharType(charLength);
-        return ColumnMapping.sliceMapping(
-                charType,
-                charReadFunction(charType),
-                charWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
-    }
-
-    private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
-    {
-        VarcharType varcharType = varcharLength <= VarcharType.MAX_LENGTH
-                ? createVarcharType(varcharLength)
-                : createUnboundedVarcharType();
-        return ColumnMapping.sliceMapping(
-                varcharType,
-                varcharReadFunction(varcharType),
-                varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
-    }
-
     private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
     {
         return switch (teradataJDBCCaseSensitivity) {
@@ -340,7 +315,7 @@ public class TeradataClient
         return Optional.empty();
     }
 
-    private Optional<ColumnMapping> numberMapping(JdbcTypeHandle typeHandle)
+    private static Optional<ColumnMapping> numberMapping(JdbcTypeHandle typeHandle)
     {
         int precision = typeHandle.requiredColumnSize();
         int scale = typeHandle.requiredDecimalDigits();
@@ -379,4 +354,30 @@ public class TeradataClient
             default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
         };
     }
+
+    private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
+    {
+        if (charLength > CharType.MAX_LENGTH) {
+            return varcharColumnMapping(charLength, isCaseSensitive);
+        }
+        CharType charType = createCharType(charLength);
+        return ColumnMapping.sliceMapping(
+                charType,
+                charReadFunction(charType),
+                charWriteFunction(),
+                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+    }
+
+    private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
+    {
+        VarcharType varcharType = varcharLength <= VarcharType.MAX_LENGTH
+                ? createVarcharType(varcharLength)
+                : createUnboundedVarcharType();
+        return ColumnMapping.sliceMapping(
+                varcharType,
+                varcharReadFunction(varcharType),
+                varcharWriteFunction(),
+                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+    }
+
 }

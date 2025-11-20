@@ -275,7 +275,7 @@ final class TestTeradataTypeMapping
 
     private DataSetup teradataJDBCCreateAndInsert(String tableNamePrefix)
     {
-        String prefix = String.format("%s.%s", database.getDatabaseName(), tableNamePrefix);
+        String prefix = database.getDatabaseName() + "." + tableNamePrefix;
         return new CreateAndInsertDataSetup(database, prefix);
     }
 }

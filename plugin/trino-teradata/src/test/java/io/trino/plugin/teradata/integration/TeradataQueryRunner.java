@@ -45,20 +45,6 @@ public final class TeradataQueryRunner
         return new Builder(server);
     }
 
-    public static void main(String[] args)
-            throws Exception
-    {
-        Logging logger = Logging.initialize();
-        logger.setLevel("io.trino.plugin.teradata", Level.DEBUG);
-        logger.setLevel("io.trino", Level.INFO);
-        TestingTeradataServer server = new TestingTeradataServer("TeradataQueryRunner", false);
-        QueryRunner queryRunner = builder(server).addCoordinatorProperty("http-server.http.port", "8080").setInitialTables(TpchTable.getTables()).build();
-
-        Logger log = Logger.get(TeradataQueryRunner.class);
-        log.info("======== SERVER STARTED ========");
-        log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
-    }
-
     public static class Builder
             extends DistributedQueryRunner.Builder<Builder>
     {
@@ -75,7 +61,7 @@ public final class TeradataQueryRunner
         {
             @Language("SQL") String sql = String.format("CREATE TABLE %s AS SELECT * FROM %s", table.objectName(), table);
             queryRunner.execute(session, sql);
-            ((ObjectAssert) assertThat(queryRunner.execute(session, "SELECT count(*) FROM " + table.objectName()).getOnlyValue()).as("Table is not loaded properly: %s", new Object[] {
+            (assertThat(queryRunner.execute(session, "SELECT count(*) FROM " + table.objectName()).getOnlyValue()).as("Table is not loaded properly: %s", new Object[] {
                     table.objectName()})).isEqualTo(queryRunner.execute(session, "SELECT count(*) FROM " + table).getOnlyValue());
         }
 
@@ -122,4 +108,19 @@ public final class TeradataQueryRunner
             return super.build();
         }
     }
+
+    public static void main(String[] args)
+            throws Exception
+    {
+        Logging logger = Logging.initialize();
+        logger.setLevel("io.trino.plugin.teradata", Level.DEBUG);
+        logger.setLevel("io.trino", Level.INFO);
+        TestingTeradataServer server = new TestingTeradataServer("TeradataQueryRunner", false);
+        QueryRunner queryRunner = builder(server).addCoordinatorProperty("http-server.http.port", "8080").setInitialTables(TpchTable.getTables()).build();
+
+        Logger log = Logger.get(TeradataQueryRunner.class);
+        log.info("======== SERVER STARTED ========");
+        log.info("\n====\n%s\n====", queryRunner.getCoordinator().getBaseUrl());
+    }
+
 }
