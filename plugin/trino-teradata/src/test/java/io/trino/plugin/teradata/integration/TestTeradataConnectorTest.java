@@ -25,14 +25,17 @@ import io.trino.testing.sql.TestTable;
 import org.assertj.core.api.AssertProvider;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.function.Consumer;
 
-import static io.trino.plugin.teradata.integration.clearscape.ClearScapeEnvironmentUtils.generateUniqueEnvName;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
@@ -45,6 +48,151 @@ final class TestTeradataConnectorTest
     private static final int TERADATA_OBJECT_NAME_LIMIT = 128;
 
     private TestingTeradataServer database;
+    // ---------------- Sharding (method-level) + shard-scoped server ----------------
+
+    private static final String PROP_TOTAL_SHARDS = "test.totalShards";
+    private static final String PROP_SHARD_INDEX = "test.shardIndex";
+    private static final String PROP_TEST_ENV = "test.env";
+    private static final String ENV_TEST_ENV = "TEST_ENV";
+
+    /**
+     * parsed values used by the shard logic
+     */
+    private static int totalShards = 1;
+    private static int shardIndex;
+
+    /**
+     * computed env name for this shard (td-env-<shardIndex> by default)
+     */
+    private static String shardTestEnv;
+
+    /**
+     * shard-scoped TestingTeradataServer (one instance per JVM / shard)
+     */
+    private static TestingTeradataServer shardServer;
+
+    /**
+     * Initialize shard metadata and create (or connect to) the shard-scoped server.
+     * This runs once per test-class per JVM (JUnit invokes @BeforeAll for the class)
+     */
+    @BeforeAll
+    public static void initShardAndServer()
+            throws Exception
+    {
+        // parse totals from system properties; defaults are 1 and 0 (no sharding)
+        try {
+            totalShards = Integer.parseInt(System.getProperty(PROP_TOTAL_SHARDS, "1"));
+        }
+        catch (NumberFormatException ignored) {
+            totalShards = 1;
+        }
+        try {
+            shardIndex = Integer.parseInt(System.getProperty(PROP_SHARD_INDEX, "0"));
+        }
+        catch (NumberFormatException ignored) {
+            shardIndex = 0;
+        }
+
+        // decide the test env for this shard
+        String envFromProp = System.getProperty(PROP_TEST_ENV);
+        if (envFromProp == null || envFromProp.isEmpty()) {
+            String envFromEnv = System.getenv(ENV_TEST_ENV);
+            if (envFromEnv != null && !envFromEnv.isEmpty()) {
+                envFromProp = envFromEnv;
+            }
+            else {
+                envFromProp = "td-env-" + shardIndex;
+            }
+        }
+        shardTestEnv = envFromProp;
+
+        // Initialize or connect to a shard-scoped TestingTeradataServer exactly once:
+        synchronized (TestTeradataConnectorTest.class) {
+            if (shardServer == null) {
+                // If your TestingTeradataServer constructor provisions an environment,
+                // it will provision for env name SHARD_TEST_ENV; if env points to external
+                // endpoint, it should connect accordingly.
+                shardServer = new TestingTeradataServer(shardTestEnv, true);
+                // Optionally add warm-up / pre-load data here if needed (careful with cost/time).
+            }
+        }
+    }
+
+    /**
+     * Per-test method gating: skip test methods that do not belong to this shard.
+     * Ownership computed as hash(fullyQualifiedMethodName) mod TOTAL_SHARDS.
+     */
+    @BeforeEach
+    public void methodShardGuard(TestInfo testInfo)
+    {
+        if (totalShards <= 1) {
+            return; // no sharding configured: run all methods
+        }
+
+        String className = testInfo.getTestClass().map(Class::getName).orElse(TestTeradataConnectorTest.class.getName());
+        String methodName = testInfo.getTestMethod().map(m -> m.getName()).orElse("unknownMethod");
+        String fullName = className + "#" + methodName;
+
+        // deterministic mapping: use floorMod to handle negative hashes.
+        int owner = Math.floorMod(fullName.hashCode(), totalShards);
+
+        boolean belongs = (owner == shardIndex);
+        Assumptions.assumeTrue(belongs,
+                () -> "Skipping test " + fullName + " (belongs to shard " + owner + ", this is shard " + shardIndex + ")");
+    }
+
+    /**
+     * Optional cleanup after all tests in this class run on the shard JVM.
+     * Only teardown shard server if you created ephemeral instances per shard;
+     * if the server points to a shared infra you should not destroy it here.
+     */
+    @AfterAll
+    public static void shutdownShardServer()
+    {
+        if (shardServer != null) {
+            try {
+                // If TestingTeradataServer has a close/stop method — call it, otherwise adapt.
+                shardServer.close();
+            }
+            catch (Exception ignored) {
+            }
+            finally {
+                shardServer = null;
+            }
+        }
+    }
+
+    /**
+     * Helper accessor for other methods (like createQueryRunner)
+     */
+    private static TestingTeradataServer getShardServer()
+    {
+        if (shardServer == null) {
+            // defensive: initialize if needed
+            try {
+                initShardAndServer();
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to init shard server", e);
+            }
+        }
+        return shardServer;
+    }
+
+    private static String getShardTestEnv()
+    {
+        if (shardTestEnv == null) {
+            try {
+                initShardAndServer();
+            }
+            catch (Exception e) {
+                throw new RuntimeException("Failed to init shard env", e);
+            }
+        }
+        return shardTestEnv;
+    }
+
+// ---------------- end of sharding helpers ----------------
 
     private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
             Consumer<TrinoExceptionAssert> verifyFailure)
@@ -65,7 +213,7 @@ final class TestTeradataConnectorTest
     protected QueryRunner createQueryRunner()
             throws Exception
     {
-        database = closeAfterClass(new TestingTeradataServer(generateUniqueEnvName(getClass()), true));
+        database = closeAfterClass(getShardServer());
         // Register this specific instance for this test class
         return TeradataQueryRunner.builder(database).setInitialTables(REQUIRED_TPCH_TABLES).build();
     }
@@ -290,7 +438,8 @@ final class TestTeradataConnectorTest
             // skipping date as during julian->gregorian date is handled differently in Teradata. tinyint, double and varchar with unbounded (need to handle special characters)
             // is skipped and will handle it while improving
             // write functionalities.
-            case "boolean", "tinyint", "date", "real", "double", "varchar", "time", "time(6)", "timestamp", "timestamp(6)", "varbinary", "timestamp(3) with time zone",
+            case "boolean", "tinyint", "date", "real", "double", "varchar", "time", "time(6)", "timestamp",
+                 "timestamp(6)", "varbinary", "timestamp(3) with time zone",
                  "timestamp(6) with time zone", "U&'a \\000a newline'" -> Optional.empty();
             default -> Optional.of(dataMappingTestSetup);
         };
