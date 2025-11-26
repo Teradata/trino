@@ -18,6 +18,7 @@ import io.trino.testing.QueryRunner;
 import io.trino.testing.datatype.CreateAndInsertDataSetup;
 import io.trino.testing.datatype.DataSetup;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 import java.sql.SQLException;
@@ -45,6 +46,30 @@ final class TestTeradataTypeMapping
     protected QueryRunner createQueryRunner()
             throws Exception
     {
+        // --- shard-aware early guard: avoid provisioning on non-owner shards ---
+        int totalShards = 1;
+        int shardIndex = 0;
+        try {
+            totalShards = Integer.parseInt(System.getProperty("test.totalShards", "1"));
+        }
+        catch (NumberFormatException ignored) {
+        }
+        try {
+            shardIndex = Integer.parseInt(System.getProperty("test.shardIndex", "0"));
+        }
+        catch (NumberFormatException ignored) {
+        }
+
+        if (totalShards > 1) {
+            String className = TestTeradataTypeMapping.class.getName();
+            int owner = Math.floorMod(className.hashCode(), totalShards);
+            // If this JVM is not the owner shard, abort here (JUnit will mark tests skipped).
+            int finalShardIndex = shardIndex;
+            Assumptions.assumeTrue(owner == shardIndex,
+                    () -> "Skipping createQueryRunner for " + className + " on shard " + finalShardIndex + " (owner=" + owner + ")");
+        }
+
+        // If we get here, this shard owns the class — provision the server as before.
         database = closeAfterClass(new TestingTeradataServer(generateUniqueEnvName(getClass()), true));
         // Register this specific instance for this test class
         return TeradataQueryRunner.builder(database).build();
