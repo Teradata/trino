@@ -508,6 +508,7 @@ final class TestTeradataConnectorTest
         }
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testShowCreateSchema()
@@ -515,6 +516,7 @@ final class TestTeradataConnectorTest
         super.testShowCreateSchema();
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchema()
@@ -522,6 +524,7 @@ final class TestTeradataConnectorTest
         super.testCreateSchema();
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchemaWithLongName()
@@ -529,6 +532,7 @@ final class TestTeradataConnectorTest
         super.testCreateSchemaWithLongName();
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameSchemaToLongName()
@@ -536,6 +540,7 @@ final class TestTeradataConnectorTest
         super.testRenameSchemaToLongName();
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameTableAcrossSchema()
@@ -544,6 +549,7 @@ final class TestTeradataConnectorTest
         super.testRenameTableAcrossSchema();
     }
 
+    @Override
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameTableToUnqualifiedPreservesSchema()
