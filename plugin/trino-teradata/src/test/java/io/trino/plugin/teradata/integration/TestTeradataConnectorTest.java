@@ -25,11 +25,16 @@ import io.trino.testing.sql.TestTable;
 import org.assertj.core.api.AssertProvider;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.parallel.ResourceAccessMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -41,17 +46,35 @@ import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.abort;
-import static org.junit.jupiter.api.TestInstance.Lifecycle.PER_CLASS;
-import static org.junit.jupiter.api.parallel.ExecutionMode.SAME_THREAD;
 
-@TestInstance(PER_CLASS)
-@Execution(SAME_THREAD)
 final class TestTeradataConnectorTest
         extends BaseJdbcConnectorTest
 {
     private static final int TERADATA_OBJECT_NAME_LIMIT = 128;
 
     private TestingTeradataServer database;
+
+    // Per-test timers
+    private Instant testStart;
+
+    private String testName;
+
+    @BeforeEach
+    public void startTimer(TestInfo testInfo)
+    {
+        this.testName = testInfo.getDisplayName();
+        this.testStart = Instant.now();
+        System.out.printf("[TIMING] START %s at %s%n", testName, testStart);
+    }
+
+    @AfterEach
+    public void stopTimer(TestInfo testInfo)
+    {
+        Instant end = Instant.now();
+        Duration duration = Duration.between(testStart, end);
+        long ms = duration.toMillis();
+        System.out.printf("[TIMING] END %s at %s (%d ms)%n", testName, end, ms);
+    }
 
     private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
             Consumer<TrinoExceptionAssert> verifyFailure)
@@ -486,27 +509,47 @@ final class TestTeradataConnectorTest
     }
 
     @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testShowCreateSchema()
     {
         super.testShowCreateSchema();
     }
 
     @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchema()
     {
         super.testCreateSchema();
     }
 
     @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchemaWithLongName()
     {
         super.testCreateSchemaWithLongName();
     }
 
     @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameSchemaToLongName()
     {
         super.testRenameSchemaToLongName();
+    }
+
+    @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
+    public void testRenameTableAcrossSchema()
+            throws Exception
+    {
+        super.testRenameTableAcrossSchema();
+    }
+
+    @Test
+    @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
+    public void testRenameTableToUnqualifiedPreservesSchema()
+            throws Exception
+    {
+        super.testRenameTableToUnqualifiedPreservesSchema();
     }
 
     @Override // Overriding to tag this test as slow test case to avoid running in default suite
