@@ -482,6 +482,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testShowCreateSchema()
@@ -490,6 +491,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchema()
@@ -498,6 +500,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testCreateSchemaWithLongName()
@@ -506,6 +509,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameSchemaToLongName()
@@ -514,6 +518,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameTableAcrossSchema()
@@ -523,6 +528,7 @@ final class TestTeradataConnectorTest
     }
 
     @Override
+    // Overriding to add ResourceLock to run sequential this test along with other tests labeled with TERADATA_SCHEMA to avoid issue Concurrent change conflict on database
     @Test
     @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
     public void testRenameTableToUnqualifiedPreservesSchema()
@@ -531,17 +537,17 @@ final class TestTeradataConnectorTest
         super.testRenameTableToUnqualifiedPreservesSchema();
     }
 
-    @Override // Overriding to tag this test as slow test case to avoid running in default suite
+    @Override // Overriding to tag this test as long_run test case to avoid running in clearscape_tests profile
     @Test
-    @Tag("slow")
+    @Tag("long_run")
     public void testSelectInformationSchemaColumns()
     {
         super.testSelectInformationSchemaColumns();
     }
 
-    @Override  // Overriding to tag this test as slow test case to avoid running in default suite
+    @Override  // Overriding to tag this test as long_run test case to avoid running in clearscape_tests profile
     @Test
-    @Tag("slow")
+    @Tag("long_run")
     public void testCaseSensitiveDataMapping()
     {
         super.testCaseSensitiveDataMapping();
