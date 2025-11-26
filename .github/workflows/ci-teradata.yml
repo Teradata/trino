@@ -171,6 +171,7 @@ jobs:
           include:
             - { modules: plugin/trino-teradata }
             - { modules: plugin/trino-teradata, profile: clearscape-tests }
+            - { modules: plugin/trino-teradata, profile: run-only-long-tests }
           EOF
           ./.github/bin/build-matrix-from-impacted.py -v -i gib-impacted.log -m .github/test-matrix.yaml -o matrix.json
           echo "Matrix: $(jq '.' matrix.json)"
@@ -216,6 +217,7 @@ jobs:
           && ! (contains(matrix.modules, 'trino-filesystem-s3') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-hdfs') && contains(matrix.profile, 'cloud-tests'))
           && ! (contains(matrix.modules, 'trino-teradata') && contains(matrix.profile, 'clearscape-tests'))
+          && ! (contains(matrix.modules, 'trino-teradata') && contains(matrix.profile, 'run-only-long-tests'))
         run: $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }}
       # Additional tests for selected modules
       - name: HDFS file system cache isolated JVM tests
