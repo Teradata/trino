@@ -7,6 +7,12 @@ on:
   pull_request:
   repository_dispatch:
     types: [test-with-secrets-command]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'master'    
 
 defaults:
   run:
