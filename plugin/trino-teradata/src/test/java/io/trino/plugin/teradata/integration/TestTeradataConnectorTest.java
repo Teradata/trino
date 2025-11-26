@@ -25,16 +25,11 @@ import io.trino.testing.sql.TestTable;
 import org.assertj.core.api.AssertProvider;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.parallel.ResourceAccessMode;
 import org.junit.jupiter.api.parallel.ResourceLock;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -53,28 +48,6 @@ final class TestTeradataConnectorTest
     private static final int TERADATA_OBJECT_NAME_LIMIT = 128;
 
     private TestingTeradataServer database;
-
-    // Per-test timers
-    private Instant testStart;
-
-    private String testName;
-
-    @BeforeEach
-    public void startTimer(TestInfo testInfo)
-    {
-        this.testName = testInfo.getDisplayName();
-        this.testStart = Instant.now();
-        System.out.printf("[TIMING] START %s at %s%n", testName, testStart);
-    }
-
-    @AfterEach
-    public void stopTimer(TestInfo testInfo)
-    {
-        Instant end = Instant.now();
-        Duration duration = Duration.between(testStart, end);
-        long ms = duration.toMillis();
-        System.out.printf("[TIMING] END %s at %s (%d ms)%n", testName, end, ms);
-    }
 
     private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
             Consumer<TrinoExceptionAssert> verifyFailure)
