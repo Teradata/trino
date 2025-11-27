@@ -458,6 +458,16 @@ jobs:
         if: matrix.modules == 'plugin/trino-teradata' && contains(matrix.profile, 'clearscape-tests') && (env.CLEARSCAPE_TOKEN != '' || env.CLEARSCAPE_PASSWORD != '')
         run: |
           $MAVEN test ${MAVEN_TEST} -pl :trino-teradata -Pclearscape-tests
+      - name: Teradata Long running Tests
+        id: tests-long-run-teradata
+        env:
+         CLEARSCAPE_TOKEN: ${{ secrets.CLEARSCAPE_TOKEN }}
+         CLEARSCAPE_PASSWORD: ${{ secrets.CLEARSCAPE_PASSWORD }}
+         CLEARSCAPE_REGION: ${{ vars.CLEARSCAPE_REGION }}
+         TERADATA_LONG_TESTS: ${{ vars.TERADATA_LONG_TESTS }}
+        if: matrix.modules == 'plugin/trino-teradata' && contains(matrix.profile, 'run-only-long-tests') && env.CLEARSCAPE_TOKEN != '' && env.CLEARSCAPE_PASSWORD != '' && env.CLEARSCAPE_REGION != '' && env.TERADATA_LONG_TESTS
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-teradata -Prun-only-long-tests
       - name: Sanitize artifact name
         if: always()
         run: |
