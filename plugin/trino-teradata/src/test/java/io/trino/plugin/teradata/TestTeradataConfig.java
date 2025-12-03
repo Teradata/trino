@@ -23,17 +23,17 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 
-public class TestTeradataConfig
+final class TestTeradataConfig
 {
     @Test
-    public void testDefaults()
+    void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(TeradataConfig.class)
                 .setTeradataCaseSensitivity(TeradataCaseSensitivity.CASE_SENSITIVE));
     }
 
     @Test
-    public void testExplicitPropertyMappings()
+    void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("teradata.case-sensitivity", "as-defined")
