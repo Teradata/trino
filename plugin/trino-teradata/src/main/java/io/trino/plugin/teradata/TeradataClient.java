@@ -244,7 +244,7 @@ public class TeradataClient
         // try to use result set metadata from select * from table to populate the mapping
         try {
             HashMap<String, CaseSensitivity> caseMap = new HashMap<>();
-            String sql = format("select * from %s.%s where 0=1", schemaTableName.getSchemaName(), schemaTableName.getTableName());
+            String sql = format("SELECT * FROM %s WHERE 0=1", quoted(remoteTableName.getCatalogName().orElse(null), remoteTableName.getSchemaName().orElse(null), remoteTableName.getTableName()));
             PreparedStatement pstmt = connection.prepareStatement(sql);
             ResultSetMetaData rsmd = pstmt.getMetaData();
             int columnCount = rsmd.getColumnCount();
