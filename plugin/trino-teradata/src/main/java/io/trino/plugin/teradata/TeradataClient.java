@@ -97,7 +97,6 @@ import static java.lang.String.format;
 public class TeradataClient
         extends BaseJdbcClient
 {
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
     private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
 
     @Inject
@@ -117,8 +116,7 @@ public class TeradataClient
     protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName)
     {
         execute(session, format(
-                "CREATE DATABASE %s AS PERMANENT = 60000000, SPOOL = 120000000",
-                quoted(remoteSchemaName)));
+                "CREATE DATABASE %s ", quoted(remoteSchemaName)));
     }
 
     @Override
@@ -246,14 +244,14 @@ public class TeradataClient
         // try to use result set metadata from select * from table to populate the mapping
         try {
             HashMap<String, CaseSensitivity> caseMap = new HashMap<>();
-            String sql = format("select * from %s.%s where 0=1", schemaTableName.getSchemaName(), schemaTableName.getTableName());
-            PreparedStatement pstmt = connection.prepareStatement(sql);
-            ResultSetMetaData rsmd = pstmt.getMetaData();
-            int columnCount = rsmd.getColumnCount();
-            for (int i = 1; i <= columnCount; i++) {
-                caseMap.put(rsmd.getColumnName(i), rsmd.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
+            String sql = format("SELECT * FROM %s WHERE 0=1", quoted(remoteTableName.getCatalogName().orElse(null), remoteTableName.getSchemaName().orElse(null), remoteTableName.getTableName()));
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                ResultSetMetaData resultSetMetadata = statement.getMetaData();
+                int columnCount = resultSetMetadata.getColumnCount();
+                for (int i = 1; i <= columnCount; i++) {
+                    caseMap.put(resultSetMetadata.getColumnName(i), resultSetMetadata.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
+                }
             }
-            pstmt.close();
             return caseMap;
         }
         catch (SQLException e) {
@@ -265,7 +263,6 @@ public class TeradataClient
     @Override
     public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
     {
-        // this method should ultimately encompass all the expected teradata data types
         Optional<ColumnMapping> mapping = getForcedMappingToVarchar(typeHandle);
         if (mapping.isPresent()) {
             return mapping;
@@ -327,7 +324,7 @@ public class TeradataClient
                 charType,
                 charReadFunction(charType),
                 charWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
@@ -339,7 +336,7 @@ public class TeradataClient
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
@@ -347,7 +344,8 @@ public class TeradataClient
         return switch (teradataJDBCCaseSensitivity) {
             case CASE_INSENSITIVE -> false;
             case CASE_SENSITIVE -> true;
-            default -> caseSensitivity != null;
+            // AS_DEFINED: use the actual metadata from Teradata
+            case AS_DEFINED -> caseSensitivity == CASE_SENSITIVE;
         };
     }
 
@@ -363,7 +361,7 @@ public class TeradataClient
             case Type typeInstance when typeInstance == DOUBLE -> WriteMapping.doubleMapping("double precision", doubleWriteFunction());
             case Type typeInstance when typeInstance == DATE -> WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
             case DecimalType decimalTypeInstance -> {
-                String dataType = String.format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
+                String dataType = format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
                 if (decimalTypeInstance.isShort()) {
                     yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalTypeInstance));
                 }

@@ -133,13 +133,13 @@ public class TeradataHttpClient
             });
         }
         else if (httpResponse.statusCode() >= 400 && httpResponse.statusCode() <= 499) {
-            throw new Error4xxException(httpResponse.statusCode(), body);
+            throw new ClearScapeHttpException(httpResponse.statusCode(), body);
         }
         else if (httpResponse.statusCode() >= 500 && httpResponse.statusCode() <= 599) {
-            throw new Error5xxException(httpResponse.statusCode(), body);
+            throw new ClearScapeHttpException(httpResponse.statusCode(), body);
         }
         else {
-            throw new BaseException(httpResponse.statusCode(), body);
+            throw new ClearScapeHttpException(httpResponse.statusCode(), body);
         }
     }
 

@@ -19,7 +19,7 @@ import jakarta.validation.constraints.NotNull;
 
 public class TeradataConfig
 {
-    private TeradataCaseSensitivity teradataCaseSensitivity = TeradataCaseSensitivity.CASE_SENSITIVE;
+    private TeradataCaseSensitivity teradataCaseSensitivity = TeradataCaseSensitivity.AS_DEFINED;
 
     @NotNull
     public TeradataCaseSensitivity getTeradataCaseSensitivity()
@@ -28,7 +28,7 @@ public class TeradataConfig
     }
 
     @Config("teradata.case-sensitivity")
-    @ConfigDescription("How char/varchar columns' case sensitivity will be exposed to Trino (default: CASE_SENSITIVE). Possible values: CASE_INSENSITIVE, CASE_SENSITIVE, AS_DEFINED.")
+    @ConfigDescription("How char/varchar columns' case sensitivity will be exposed to Trino (default: AS_DEFINED). Possible values: CASE_INSENSITIVE, CASE_SENSITIVE, AS_DEFINED.")
     public TeradataConfig setTeradataCaseSensitivity(TeradataCaseSensitivity teradataCaseSensitivity)
     {
         this.teradataCaseSensitivity = teradataCaseSensitivity;

@@ -22,25 +22,26 @@ import java.util.Map;
 import static io.airlift.configuration.testing.ConfigAssertions.assertFullMapping;
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
+import static io.trino.plugin.teradata.TeradataConfig.TeradataCaseSensitivity.AS_DEFINED;
 
-public class TestTeradataConfig
+final class TestTeradataConfig
 {
     @Test
-    public void testDefaults()
+    void testDefaults()
     {
         assertRecordedDefaults(recordDefaults(TeradataConfig.class)
-                .setTeradataCaseSensitivity(TeradataCaseSensitivity.CASE_SENSITIVE));
+                .setTeradataCaseSensitivity(AS_DEFINED));
     }
 
     @Test
-    public void testExplicitPropertyMappings()
+    void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
                 .put("teradata.case-sensitivity", "as-defined")
                 .buildOrThrow();
 
         TeradataConfig expected = new TeradataConfig()
-                .setTeradataCaseSensitivity(TeradataCaseSensitivity.AS_DEFINED);
+                .setTeradataCaseSensitivity(AS_DEFINED);
 
         assertFullMapping(properties, expected);
     }

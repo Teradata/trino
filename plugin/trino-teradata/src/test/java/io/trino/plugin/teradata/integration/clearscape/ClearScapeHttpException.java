@@ -13,11 +13,19 @@
  */
 package io.trino.plugin.teradata.integration.clearscape;
 
-public class Error5xxException
-        extends BaseException
+public class ClearScapeHttpException
+        extends RuntimeException
 {
-    public Error5xxException(int statusCode, String body)
+    private final int statusCode;
+
+    public ClearScapeHttpException(int statusCode, String body)
     {
-        super(statusCode, body);
+        super(body);
+        this.statusCode = statusCode;
+    }
+
+    public int getStatusCode()
+    {
+        return statusCode;
     }
 }
