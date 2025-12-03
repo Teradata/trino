@@ -26,6 +26,11 @@ public class ClearScapeManager
             Pattern.compile("^(https?://)(www\\.)?api.clearscape.teradata\\.com.*");
     private Model model;
 
+    public ClearScapeManager(Model model)
+    {
+        this.model = model;
+    }
+
     private boolean isValidUrl(String url)
     {
         return ALLOWED_URL_PATTERN.matcher(url).matches();
@@ -41,11 +46,6 @@ public class ClearScapeManager
         else {
             throw new URISyntaxException(envUrl, "Provide valid environment URL");
         }
-    }
-
-    public void init(Model model)
-    {
-        this.model = model;
     }
 
     public void setup()

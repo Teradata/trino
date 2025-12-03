@@ -47,9 +47,8 @@ public class ClearScapeSetup
     public Model initialize()
     {
         try {
-            manager = new ClearScapeManager();
             Model model = createModel();
-            manager.init(model);
+            manager = new ClearScapeManager(model);
             manager.setup();
             return model;
         }

@@ -42,7 +42,9 @@ connection-url=jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGM
 ```
 
 The `connection-user` and `connection-password` are typically required and 
-determine the user credentials for the connection, often a service user.
+determine the user credentials for the connection, often a service user. You can
+use {doc}`secrets </security/secrets>` to avoid actual values in the catalog
+properties files.
 
 ### Connection security
 
@@ -208,7 +210,5 @@ SELECT * FROM teradata.sales.orders;
 
 ## SQL support
 
-The connector provides read access to data and metadata in
-a Teradata database.  The connector supports the {ref}`globally available
-<sql-globally-available>` and {ref}`read operation <sql-read-operations>`
-statements.
+The connector provides read access and write access to data and metadata in Teradata. The connector provides support to  [globally available](sql-globally-available) and 
+[read operation](sql-read-operations) statements.
