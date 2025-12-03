@@ -24,7 +24,6 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
-import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.WriteMapping;
@@ -316,6 +315,7 @@ public class TeradataClient
 
     private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
     {
+        // Trino's CharType has a maximum length of 65,536; fall back to VARCHAR for larger CHAR columns
         if (charLength > CharType.MAX_LENGTH) {
             return varcharColumnMapping(charLength, isCaseSensitive);
         }

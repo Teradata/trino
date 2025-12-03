@@ -14,7 +14,6 @@
 package io.trino.plugin.teradata;
 
 import com.google.common.collect.ImmutableMap;
-import io.trino.plugin.teradata.TeradataConfig.TeradataCaseSensitivity;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
