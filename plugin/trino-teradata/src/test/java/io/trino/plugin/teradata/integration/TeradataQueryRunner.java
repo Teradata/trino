@@ -107,14 +107,17 @@ public final class TeradataQueryRunner
             return super.build();
         }
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging logger = Logging.initialize();
             logger.setLevel("io.trino.plugin.teradata", Level.DEBUG);
             logger.setLevel("io.trino", Level.INFO);
             TestingTeradataServer server = new TestingTeradataServer("TeradataQueryRunner", false);
-            QueryRunner queryRunner = builder(server).addCoordinatorProperty("http-server.http.port", "8080").setInitialTables(TpchTable.getTables()).build();
+            QueryRunner queryRunner = builder(server)
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .setInitialTables(TpchTable.getTables())
+                    .build();
 
             Logger log = Logger.get(TeradataQueryRunner.class);
             log.info("======== SERVER STARTED ========");

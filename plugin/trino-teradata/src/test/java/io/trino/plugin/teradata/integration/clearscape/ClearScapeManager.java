@@ -26,24 +26,22 @@ public class ClearScapeManager
             Pattern.compile("^(https?://)(www\\.)?api.clearscape.teradata\\.com.*");
     private Model model;
 
-    private boolean isValidUrl(String url)
+    private TeradataHttpClient getTeradataHttpClient()
+            throws URISyntaxException
+    {
+        String envUrl = TeradataTestConstants.CLEARSCAPE_URL;
+        if (isValidUrl(envUrl)) {
+            return new TeradataHttpClient(envUrl);
+        }
+        throw new URISyntaxException(envUrl, "Provide valid environment URL");
+    }
+
+    private static boolean isValidUrl(String url)
     {
         return ALLOWED_URL_PATTERN.matcher(url).matches();
     }
 
-    private TeradataHttpClient getTeradataHttpClient()
-            throws URISyntaxException
-    {
-        String envUrl = TeradataTestConstants.ENV_CLEARSCAPE_URL;
-        if (isValidUrl(envUrl)) {
-            return new TeradataHttpClient(envUrl);
-        }
-        else {
-            throw new URISyntaxException(envUrl, "Provide valid environment URL");
-        }
-    }
-
-    public void init(Model model)
+    public ClearScapeManager(Model model)
     {
         this.model = model;
     }
@@ -73,8 +71,8 @@ public class ClearScapeManager
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
 
-            String token = this.model.getToken();
-            String name = this.model.getEnvName();
+            String token = model.getToken();
+            String name = model.getEnvName();
             EnvironmentResponse response = null;
             try {
                 response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
@@ -100,8 +98,8 @@ public class ClearScapeManager
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
 
-            String token = this.model.getToken();
-            String name = this.model.getEnvName();
+            String token = model.getToken();
+            String name = model.getEnvName();
             EnvironmentResponse response = null;
             try {
                 response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
@@ -115,7 +113,7 @@ public class ClearScapeManager
                         name,
                         model.getRegion(),
                         model.getPassword());
-                response = teradataHttpClient.createEnvironment(request, token).get();
+                response = teradataHttpClient.createEnvironment(request, token);
             }
             else if (response.state() == EnvironmentResponse.State.STOPPED) {
                 EnvironmentRequest request = new EnvironmentRequest(name, new OperationRequest("start"));
@@ -134,8 +132,8 @@ public class ClearScapeManager
     {
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
-            String token = this.model.getToken();
-            String name = this.model.getEnvName();
+            String token = model.getToken();
+            String name = model.getEnvName();
 
             EnvironmentResponse response = null;
             try {
@@ -160,13 +158,13 @@ public class ClearScapeManager
     {
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
-            String token = this.model.getToken();
-            DeleteEnvironmentRequest request = new DeleteEnvironmentRequest(this.model.getEnvName());
+            String token = model.getToken();
+            DeleteEnvironmentRequest request = new DeleteEnvironmentRequest(model.getEnvName());
             teradataHttpClient.deleteEnvironment(request, token).get();
         }
         catch (BaseException be) {
             log.info("Environment %s is not available. Error - %s",
-                    this.model.getEnvName(), be.getMessage());
+                    model.getEnvName(), be.getMessage());
         }
         catch (Exception e) {
             throw new RuntimeException("Failed to shutdown and destroy ClearScape instance", e);

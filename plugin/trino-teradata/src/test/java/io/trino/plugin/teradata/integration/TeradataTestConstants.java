@@ -13,8 +13,10 @@
  */
 package io.trino.plugin.teradata.integration;
 
-public interface TeradataTestConstants
+public final class TeradataTestConstants
 {
-    String ENV_CLEARSCAPE_URL = "https://api.clearscape.teradata.com";
-    String ENV_CLEARSCAPE_USERNAME = "demo_user";
+    public static String CLEARSCAPE_URL = "https://api.clearscape.teradata.com";
+    public static String CLEARSCAPE_USERNAME = "demo_user";
+
+    private TeradataTestConstants() {}
 }

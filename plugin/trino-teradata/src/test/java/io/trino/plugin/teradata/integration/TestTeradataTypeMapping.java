@@ -64,7 +64,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("byteint", "127", TINYINT, "CAST(127 AS TINYINT)")
                 .addRoundTrip("byteint", "-128", TINYINT, "CAST(-128 AS TINYINT)")
                 .addRoundTrip("byteint", "null", TINYINT, "CAST(null AS TINYINT)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("byteint"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("byteint"));
     }
 
     @Test
@@ -75,7 +75,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("smallint", "32767", SMALLINT, "CAST(32767 AS SMALLINT)")
                 .addRoundTrip("smallint", "-32768", SMALLINT, "CAST(-32768 AS SMALLINT)")
                 .addRoundTrip("smallint", "null", SMALLINT, "CAST(null AS SMALLINT)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("smallint"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("smallint"));
     }
 
     @Test
@@ -86,7 +86,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("integer", "2147483647", INTEGER, "2147483647")
                 .addRoundTrip("integer", "-2147483648", INTEGER, "-2147483648")
                 .addRoundTrip("integer", "NULL", INTEGER, "CAST(NULL AS INTEGER)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("integer"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("integer"));
     }
 
     @Test
@@ -97,7 +97,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("bigint", "9223372036854775807", BIGINT, "9223372036854775807")
                 .addRoundTrip("bigint", "-9223372036854775808", BIGINT, "-9223372036854775808")
                 .addRoundTrip("bigint", "NULL", BIGINT, "CAST(NULL AS BIGINT)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bigint"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("bigint"));
     }
 
     @Test
@@ -116,7 +116,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("float", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
                 .addRoundTrip("real", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
                 .addRoundTrip("double precision", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("float"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("float"));
     }
 
     @Test
@@ -150,7 +150,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("decimal(38, 0)", "-12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('-12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("numeric(38, 0)", "-12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('-12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("decimal(1, 0)", "null", createDecimalType(1, 0), "CAST(null AS decimal(1, 0))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("decimal"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("decimal"));
     }
 
     @Test
@@ -163,7 +163,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("number(38,2)", "123456789012345678901234567890123456.78", createDecimalType(38, 2), "CAST('123456789012345678901234567890123456.78' AS decimal(38, 2))")
                 .addRoundTrip("numeric(38)", "12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("numeric(3)", "null", createDecimalType(3, 0), "CAST(null AS decimal(3, 0))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("number"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("number"));
     }
 
     @Test
@@ -183,20 +183,20 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("char(3)", "'A C'", createCharType(3), "CAST('A C' AS char(3))")
                 .addRoundTrip("char(3)", "' BC'", createCharType(3), "CAST(' BC' AS char(3))")
                 .addRoundTrip("char(3)", "null", createCharType(3), "CAST(null AS char(3))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("char"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("char"));
         String tmode = database.getTMode();
         if (tmode.equals("TERA")) {
             // truncation
             create()
                     .addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
-                    .execute(getQueryRunner(), teradataJDBCCreateAndInsert("chart"));
+                    .execute(getQueryRunner(), teradataCreateAndInsert("chart"));
         }
         else {
             // Error on truncation
             assertThatThrownBy(() ->
                     create()
                             .addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
-                            .execute(getQueryRunner(), teradataJDBCCreateAndInsert("chart")))
+                            .execute(getQueryRunner(), teradataCreateAndInsert("chart")))
                     .isInstanceOf(RuntimeException.class)
                     .hasCauseInstanceOf(SQLException.class)
                     .cause()
@@ -205,7 +205,7 @@ final class TestTeradataTypeMapping
         // max-size
         create()
                 .addRoundTrip("char(64000)", "'max'", createCharType(64000), "CAST('max' AS char(64000))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("charl"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("charl"));
     }
 
     @Test
@@ -226,20 +226,20 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("varchar(32)", "'A C'", createVarcharType(32), "CAST('A C' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "' BC'", createVarcharType(32), "CAST(' BC' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "null", createVarcharType(32), "CAST(null AS varchar(32))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchar"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("varchar"));
         String teraMode = database.getTMode();
         if (teraMode.equals("TERA")) {
             // truncation
             create()
                     .addRoundTrip("varchar(3)", "'ABCD'", createVarcharType(3), "CAST('ABCD' AS varchar(3))")
-                    .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchart"));
+                    .execute(getQueryRunner(), teradataCreateAndInsert("varchart"));
         }
         else {
             // Error on truncation
             assertThatThrownBy(() ->
                     create()
                             .addRoundTrip("varchar(3)", "'ABCD'", createVarcharType(3), "CAST('ABCD' AS varchar(3))")
-                            .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchart")))
+                            .execute(getQueryRunner(), teradataCreateAndInsert("varchart")))
                     .isInstanceOf(RuntimeException.class)
                     .hasCauseInstanceOf(SQLException.class)
                     .cause()
@@ -248,7 +248,7 @@ final class TestTeradataTypeMapping
         // max-size
         create()
                 .addRoundTrip("long varchar", "'max'", createVarcharType(64000), "CAST('max' AS varchar(64000))")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varcharl"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("varcharl"));
     }
 
     @Test
@@ -271,10 +271,10 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("date", "DATE '2024-02-29'", DATE, "DATE '2024-02-29'")
                 .addRoundTrip("date", "DATE '9999-12-30'", DATE, "DATE '9999-12-30'")
                 .addRoundTrip("date", "NULL", DATE, "CAST(NULL AS DATE)")
-                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("date"));
+                .execute(getQueryRunner(), teradataCreateAndInsert("date"));
     }
 
-    private DataSetup teradataJDBCCreateAndInsert(String tableNamePrefix)
+    private DataSetup teradataCreateAndInsert(String tableNamePrefix)
     {
         String prefix = format("%s.%s", database.getDatabaseName(), tableNamePrefix);
         return new CreateAndInsertDataSetup(database, prefix);

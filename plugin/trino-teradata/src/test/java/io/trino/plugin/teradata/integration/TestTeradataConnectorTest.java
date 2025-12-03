@@ -49,21 +49,6 @@ final class TestTeradataConnectorTest
 
     private TestingTeradataServer database;
 
-    private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
-            Consumer<TrinoExceptionAssert> verifyFailure)
-    {
-        requireNonNull(verifyResults, "verifyResults is null");
-        requireNonNull(verifyFailure, "verifyFailure is null");
-        QueryAssertions.QueryAssert queryAssert = assertThat(queryAssertProvider);
-        verifyResults.accept(queryAssert);
-    }
-
-    @Override
-    protected SqlExecutor onRemoteDatabase()
-    {
-        return database;
-    }
-
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
@@ -550,5 +535,20 @@ final class TestTeradataConnectorTest
     public void testCaseSensitiveDataMapping()
     {
         super.testCaseSensitiveDataMapping();
+    }
+
+    private static void verifyResultOrFailure(AssertProvider<QueryAssertions.QueryAssert> queryAssertProvider, Consumer<QueryAssertions.QueryAssert> verifyResults,
+                                              Consumer<TrinoExceptionAssert> verifyFailure)
+    {
+        requireNonNull(verifyResults, "verifyResults is null");
+        requireNonNull(verifyFailure, "verifyFailure is null");
+        QueryAssertions.QueryAssert queryAssert = assertThat(queryAssertProvider);
+        verifyResults.accept(queryAssert);
+    }
+
+    @Override
+    protected SqlExecutor onRemoteDatabase()
+    {
+        return database;
     }
 }

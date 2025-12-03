@@ -30,7 +30,7 @@ public class DatabaseConfigFactory
         String hostName = null;
 
         if (isEnvSet("CLEARSCAPE_TOKEN")) {
-            userName = TeradataTestConstants.ENV_CLEARSCAPE_USERNAME;
+            userName = TeradataTestConstants.CLEARSCAPE_USERNAME;
             password = requireEnv("CLEARSCAPE_PASSWORD");
         }
         else {
