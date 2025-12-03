@@ -360,7 +360,7 @@ public class TeradataClient
             case Type typeInstance when typeInstance == DOUBLE -> WriteMapping.doubleMapping("double precision", doubleWriteFunction());
             case Type typeInstance when typeInstance == DATE -> WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
             case DecimalType decimalTypeInstance -> {
-                String dataType = String.format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
+                String dataType = format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
                 if (decimalTypeInstance.isShort()) {
                     yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalTypeInstance));
                 }
