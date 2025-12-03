@@ -116,8 +116,7 @@ public class TeradataClient
     protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName)
     {
         execute(session, format(
-                "CREATE DATABASE %s AS PERMANENT = 60000000, SPOOL = 120000000",
-                quoted(remoteSchemaName)));
+                "CREATE DATABASE %s ", quoted(remoteSchemaName)));
     }
 
     @Override
