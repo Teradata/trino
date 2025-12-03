@@ -97,7 +97,6 @@ import static java.lang.String.format;
 public class TeradataClient
         extends BaseJdbcClient
 {
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
     private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
 
     @Inject
@@ -327,7 +326,7 @@ public class TeradataClient
                 charType,
                 charReadFunction(charType),
                 charWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
@@ -339,7 +338,7 @@ public class TeradataClient
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
