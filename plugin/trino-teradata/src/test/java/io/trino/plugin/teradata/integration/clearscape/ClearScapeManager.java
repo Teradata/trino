@@ -79,7 +79,7 @@ public class ClearScapeManager
             try {
                 response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
             }
-            catch (BaseException be) {
+            catch (ClearScapeHttpException be) {
                 return EnvironmentResponse.State.TERMINATED;
             }
 
@@ -106,7 +106,7 @@ public class ClearScapeManager
             try {
                 response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
             }
-            catch (BaseException be) {
+            catch (ClearScapeHttpException be) {
                 log.info("Environment %s is not available. %s", name, be.getMessage());
             }
 
@@ -141,7 +141,7 @@ public class ClearScapeManager
             try {
                 response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
             }
-            catch (BaseException be) {
+            catch (ClearScapeHttpException be) {
                 log.info("Environment %s is not available. %s", name, be.getMessage());
             }
             if (response != null &&
@@ -164,7 +164,7 @@ public class ClearScapeManager
             DeleteEnvironmentRequest request = new DeleteEnvironmentRequest(this.model.getEnvName());
             teradataHttpClient.deleteEnvironment(request, token).get();
         }
-        catch (BaseException be) {
+        catch (ClearScapeHttpException be) {
             log.info("Environment %s is not available. Error - %s",
                     this.model.getEnvName(), be.getMessage());
         }

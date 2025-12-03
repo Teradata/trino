@@ -22,6 +22,7 @@ import static io.airlift.configuration.testing.ConfigAssertions.assertFullMappin
 import static io.airlift.configuration.testing.ConfigAssertions.assertRecordedDefaults;
 import static io.airlift.configuration.testing.ConfigAssertions.recordDefaults;
 import static io.trino.plugin.teradata.TeradataConfig.TeradataCaseSensitivity.AS_DEFINED;
+import static io.trino.plugin.teradata.TeradataConfig.TeradataCaseSensitivity.CASE_SENSITIVE;
 
 final class TestTeradataConfig
 {
@@ -36,11 +37,11 @@ final class TestTeradataConfig
     void testExplicitPropertyMappings()
     {
         Map<String, String> properties = ImmutableMap.<String, String>builder()
-                .put("teradata.case-sensitivity", "as-defined")
+                .put("teradata.case-sensitivity", "case-sensitive")
                 .buildOrThrow();
 
         TeradataConfig expected = new TeradataConfig()
-                .setTeradataCaseSensitivity(AS_DEFINED);
+                .setTeradataCaseSensitivity(CASE_SENSITIVE);
 
         assertFullMapping(properties, expected);
     }
