@@ -20,7 +20,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 class TestTeradataClassLoading
 {
     @Test
-    void testPluginClassLoadable() throws Exception
+    void testPluginClassLoadable()
+            throws Exception
     {
         Class<?> pluginClass = Class.forName("io.trino.plugin.teradata.TeradataPlugin");
         Object pluginInstance = pluginClass.getDeclaredConstructor().newInstance();

@@ -25,11 +25,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.common.net.HttpHeaders.AUTHORIZATION;
 import static com.google.common.net.HttpHeaders.CONTENT_TYPE;
+import static java.util.Objects.requireNonNull;
 
 public class TeradataHttpClient
 {
@@ -43,7 +43,7 @@ public class TeradataHttpClient
     public TeradataHttpClient(String baseUrl)
     {
         this.httpClient = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1).build();
-        this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl is null");
+        this.baseUrl = requireNonNull(baseUrl, "baseUrl is null");
         this.objectMapper = JsonMapper.builder()
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
                 .configure(MapperFeature.ALLOW_FINAL_FIELDS_AS_MUTATORS, false)
