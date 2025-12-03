@@ -245,11 +245,11 @@ public class TeradataClient
         try {
             HashMap<String, CaseSensitivity> caseMap = new HashMap<>();
             String sql = format("SELECT * FROM %s WHERE 0=1", quoted(remoteTableName.getCatalogName().orElse(null), remoteTableName.getSchemaName().orElse(null), remoteTableName.getTableName()));
-            try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                ResultSetMetaData rsmd = pstmt.getMetaData();
-                int columnCount = rsmd.getColumnCount();
+            try (PreparedStatement statement = connection.prepareStatement(sql)) {
+                ResultSetMetaData resultSetMetadata = statement.getMetaData();
+                int columnCount = resultSetMetadata.getColumnCount();
                 for (int i = 1; i <= columnCount; i++) {
-                    caseMap.put(rsmd.getColumnName(i), rsmd.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
+                    caseMap.put(resultSetMetadata.getColumnName(i), resultSetMetadata.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
                 }
             }
             return caseMap;
