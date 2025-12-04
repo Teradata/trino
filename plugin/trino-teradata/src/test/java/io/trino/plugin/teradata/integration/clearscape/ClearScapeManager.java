@@ -41,7 +41,7 @@ public class ClearScapeManager
         return ALLOWED_URL_PATTERN.matcher(url).matches();
     }
 
-    public ClearScapeManager() {}
+//    public ClearScapeManager() {}
 
     public void init(Model model)
     {
