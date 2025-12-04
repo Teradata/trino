@@ -13,10 +13,18 @@
  */
 package io.trino.plugin.teradata.integration;
 
-public final class TeradataTestConstants
-{
-    public static final String CLEARSCAPE_URL = "https://api.clearscape.teradata.com";
-    public static final String CLEARSCAPE_USERNAME = "demo_user";
+import org.junit.jupiter.api.Test;
 
-    private TeradataTestConstants() {}
+import static org.assertj.core.api.Assertions.assertThat;
+
+class TestTeradataClassLoading
+{
+    @Test
+    void testPluginClassLoadable()
+            throws Exception
+    {
+        Class<?> pluginClass = Class.forName("io.trino.plugin.teradata.TeradataPlugin");
+        Object pluginInstance = pluginClass.getDeclaredConstructor().newInstance();
+        assertThat(pluginInstance).isNotNull();
+    }
 }
