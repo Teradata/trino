@@ -114,8 +114,10 @@ public class TeradataClient
     @Override
     protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName)
     {
+        //Teradata needs to specify PERMANENT and SPOOL when creating a database
         execute(session, format(
-                "CREATE DATABASE %s ", quoted(remoteSchemaName)));
+                "CREATE DATABASE %s AS PERMANENT = 60000000, SPOOL = 120000000",
+                quoted(remoteSchemaName)));
     }
 
     @Override
