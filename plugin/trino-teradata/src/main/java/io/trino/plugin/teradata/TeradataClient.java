@@ -24,7 +24,6 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
-import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.WriteMapping;
@@ -47,7 +46,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,8 +95,7 @@ import static java.lang.String.format;
 public class TeradataClient
         extends BaseJdbcClient
 {
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
-    private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
+    private final String sessionMode;
 
     @Inject
     public TeradataClient(
@@ -110,7 +107,7 @@ public class TeradataClient
             RemoteQueryModifier remoteQueryModifier)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, remoteQueryModifier, true);
-        this.teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
+        sessionMode = getTMode(config.getConnectionUrl());
     }
 
     @Override
@@ -243,21 +240,19 @@ public class TeradataClient
     protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName,
             RemoteTableName remoteTableName)
     {
-        // try to use result set metadata from select * from table to populate the mapping
         try {
-            HashMap<String, CaseSensitivity> caseMap = new HashMap<>();
-            String sql = format("select * from %s.%s where 0=1", schemaTableName.getSchemaName(), schemaTableName.getTableName());
-            PreparedStatement pstmt = connection.prepareStatement(sql);
-            ResultSetMetaData rsmd = pstmt.getMetaData();
-            int columnCount = rsmd.getColumnCount();
+            ImmutableMap.Builder<String, CaseSensitivity> columns = ImmutableMap.builder();
+            String sql = format("SELECT * FROM %s.%s WHERE 0=1", quoted(schemaTableName.getSchemaName()), quoted(schemaTableName.getTableName()));
+            PreparedStatement preparedStatement = connection.prepareStatement(sql);
+            ResultSetMetaData resultSetMetaData = preparedStatement.getMetaData();
+            int columnCount = resultSetMetaData.getColumnCount();
             for (int i = 1; i <= columnCount; i++) {
-                caseMap.put(rsmd.getColumnName(i), rsmd.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
+                columns.put(resultSetMetaData.getColumnName(i), resultSetMetaData.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
             }
-            pstmt.close();
-            return caseMap;
+            preparedStatement.close();
+            return columns.buildOrThrow();
         }
         catch (SQLException e) {
-            // behavior of base jdbc
             return ImmutableMap.of();
         }
     }
@@ -327,7 +322,7 @@ public class TeradataClient
                 charType,
                 charReadFunction(charType),
                 charWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
@@ -339,16 +334,17 @@ public class TeradataClient
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
     {
-        return switch (teradataJDBCCaseSensitivity) {
-            case CASE_INSENSITIVE -> false;
-            case CASE_SENSITIVE -> true;
-            default -> caseSensitivity != null;
-        };
+        if (caseSensitivity == null) {
+            return sessionMode != null && sessionMode.equals("ANSI");
+        }
+        else {
+            return caseSensitivity == CASE_SENSITIVE;
+        }
     }
 
     @Override
@@ -378,5 +374,24 @@ public class TeradataClient
             }
             default -> throw new TrinoException(NOT_SUPPORTED, "Unsupported column type: " + type.getDisplayName());
         };
+    }
+
+    private String getTMode(String connectionUrl)
+    {
+        if (connectionUrl == null) {
+            return null;
+        }
+        final String key = "TMODE=";
+        int start = connectionUrl.indexOf(key);
+        if (start == -1) {
+            return null;
+        }
+
+        start += key.length();
+        int end = connectionUrl.indexOf(',', start);
+        if (end == -1) {
+            end = connectionUrl.length();
+        }
+        return connectionUrl.substring(start, end);
     }
 }
