@@ -13,14 +13,24 @@
  */
 package io.trino.plugin.teradata.integration.clearscape;
 
-public class BaseException
+import static java.util.Objects.requireNonNull;
+
+public class ClearScapeServiceException
         extends RuntimeException
 {
-    protected final int statusCode;
-
-    public BaseException(int statusCode, String body)
+    public ClearScapeServiceException(int statusCode, String body)
     {
-        super(body);
-        this.statusCode = statusCode;
+        super(buildMessage(statusCode, requireNonNull(body, "body should not be null")));
+    }
+
+    private static String buildMessage(int statusCode, String body)
+    {
+        if (statusCode >= 400 && statusCode <= 499) {
+            return "Client error - " + statusCode + body;
+        }
+        if (statusCode >= 500 && statusCode <= 599) {
+            return "Server error - " + statusCode + body;
+        }
+        return "Unexpected error - " + statusCode + body;
     }
 }

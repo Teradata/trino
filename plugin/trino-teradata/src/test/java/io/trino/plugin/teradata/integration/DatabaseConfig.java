@@ -27,13 +27,13 @@ public class DatabaseConfig
 
     private DatabaseConfig(Builder builder)
     {
-        this.jdbcUrl = builder.jdbcUrl;
-        this.hostName = builder.hostName;
-        this.databaseName = builder.databaseName;
-        this.useClearScape = builder.useClearScape;
-        this.authConfig = builder.authConfig;
-        this.clearScapeEnvName = builder.clearScapeEnvName;
-        this.jdbcProperties = builder.jdbcProperties;
+        jdbcUrl = builder.jdbcUrl;
+        hostName = builder.hostName;
+        databaseName = builder.databaseName;
+        useClearScape = builder.useClearScape;
+        authConfig = builder.authConfig;
+        clearScapeEnvName = builder.clearScapeEnvName;
+        jdbcProperties = builder.jdbcProperties;
     }
 
     public static Builder builder()
@@ -44,13 +44,13 @@ public class DatabaseConfig
     public Builder toBuilder()
     {
         return builder()
-                .jdbcUrl(this.jdbcUrl)
-                .hostName(this.hostName)
-                .databaseName(this.databaseName)
-                .useClearScape(this.useClearScape)
-                .authConfig(this.authConfig)
-                .clearScapeEnvName(this.clearScapeEnvName)
-                .jdbcProperties(this.jdbcProperties);
+                .jdbcUrl(jdbcUrl)
+                .hostName(hostName)
+                .databaseName(databaseName)
+                .useClearScape(useClearScape)
+                .authConfig(authConfig)
+                .clearScapeEnvName(clearScapeEnvName)
+                .jdbcProperties(jdbcProperties);
     }
 
     public String getJdbcUrl()

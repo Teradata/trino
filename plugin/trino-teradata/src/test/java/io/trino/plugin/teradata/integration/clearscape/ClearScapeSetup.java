@@ -47,9 +47,8 @@ public class ClearScapeSetup
     public Model initialize()
     {
         try {
-            manager = new ClearScapeManager();
             Model model = createModel();
-            manager.init(model);
+            manager = new ClearScapeManager(model);
             manager.setup();
             return model;
         }
@@ -62,9 +61,9 @@ public class ClearScapeSetup
     {
         Model model = new Model();
         model.setEnvName(envName);
-        model.setUserName(TeradataTestConstants.ENV_CLEARSCAPE_USERNAME);
+        model.setUserName(TeradataTestConstants.CLEARSCAPE_USERNAME);
         model.setPassword(password);
-        model.setDatabaseName(TeradataTestConstants.ENV_CLEARSCAPE_USERNAME);
+        model.setDatabaseName(TeradataTestConstants.CLEARSCAPE_USERNAME);
         model.setToken(token);
         model.setRegion(region);
         return model;

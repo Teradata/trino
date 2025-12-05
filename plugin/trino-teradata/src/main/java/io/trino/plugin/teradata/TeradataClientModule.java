@@ -55,7 +55,6 @@ public class TeradataClientModule
     @Override
     public void setup(Binder binder)
     {
-        configBinder(binder).bindConfig(TeradataConfig.class);
         binder.bind(JdbcClient.class).annotatedWith(ForBaseJdbc.class).to(TeradataClient.class).in(Scopes.SINGLETON);
         configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
         install(new JdbcJoinPushdownSupportModule());

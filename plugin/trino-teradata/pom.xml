@@ -41,11 +41,6 @@
         </dependency>
 
         <dependency>
-            <groupId>jakarta.validation</groupId>
-            <artifactId>jakarta.validation-api</artifactId>
-        </dependency>
-
-        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-annotations</artifactId>
             <scope>provided</scope>
@@ -90,7 +85,7 @@
         <dependency>
             <groupId>com.teradata.jdbc</groupId>
             <artifactId>terajdbc</artifactId>
-            <version>20.00.00.49</version>
+            <version>20.00.00.51</version>
             <scope>runtime</scope>
         </dependency>
 
