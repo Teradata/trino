@@ -84,7 +84,6 @@ public final class IcebergQueryRunner
     public static class Builder
             extends DistributedQueryRunner.Builder<Builder>
     {
-        private Optional<File> metastoreDirectory = Optional.empty();
         private ImmutableMap.Builder<String, String> icebergProperties = ImmutableMap.builder();
         private Optional<SchemaInitializer> schemaInitializer = Optional.of(SchemaInitializer.builder().build());
         private boolean tpcdsCatalogEnabled;
@@ -103,12 +102,6 @@ public final class IcebergQueryRunner
                     .setCatalog(ICEBERG_CATALOG)
                     .setSchema(schema)
                     .build());
-        }
-
-        public Builder setMetastoreDirectory(File metastoreDirectory)
-        {
-            this.metastoreDirectory = Optional.of(metastoreDirectory);
-            return self();
         }
 
         public Builder setIcebergProperties(Map<String, String> icebergProperties)
@@ -173,7 +166,7 @@ public final class IcebergQueryRunner
                     icebergProperties.put("fs.hadoop.enabled", "true");
                 }
 
-                Path dataDir = metastoreDirectory.map(File::toPath).orElseGet(() -> queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data"));
+                Path dataDir = queryRunner.getCoordinator().getBaseDataDir().resolve("iceberg_data");
                 queryRunner.installPlugin(new TestingIcebergPlugin(dataDir));
                 queryRunner.createCatalog(ICEBERG_CATALOG, "iceberg", icebergProperties.buildOrThrow());
                 schemaInitializer.ifPresent(initializer -> initializer.accept(queryRunner));
@@ -198,7 +191,7 @@ public final class IcebergQueryRunner
     {
         private IcebergRestQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Path warehouseLocation = Files.createTempDirectory(null);
@@ -232,7 +225,7 @@ public final class IcebergQueryRunner
     {
         private IcebergPolarisQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Path warehouseLocation = Files.createTempDirectory(null);
@@ -263,7 +256,7 @@ public final class IcebergQueryRunner
     {
         private IcebergUnityQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Path warehouseLocation = Files.createTempDirectory(null);
@@ -296,7 +289,7 @@ public final class IcebergQueryRunner
     {
         private IcebergExternalQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             // Please set Iceberg connector properties via VM options. e.g. -Diceberg.catalog.type=glue -D..
@@ -315,7 +308,7 @@ public final class IcebergQueryRunner
     {
         private IcebergMinioHiveMetastoreQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             String bucketName = "test-bucket";
@@ -354,7 +347,7 @@ public final class IcebergQueryRunner
     {
         private IcebergMinioQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging.initialize();
@@ -394,7 +387,7 @@ public final class IcebergQueryRunner
     {
         private IcebergAzureQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             String azureContainer = requiredNonEmptySystemProperty("testing.azure-abfs-container");
@@ -443,7 +436,7 @@ public final class IcebergQueryRunner
     {
         private IcebergJdbcQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Path warehouseLocation = Files.createTempDirectory(null);
@@ -475,7 +468,7 @@ public final class IcebergQueryRunner
     {
         private IcebergSnowflakeQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             @SuppressWarnings("resource")
@@ -508,7 +501,7 @@ public final class IcebergQueryRunner
     {
         private IcebergNessieQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             NessieContainer nessieContainer = NessieContainer.builder().build();
@@ -538,7 +531,7 @@ public final class IcebergQueryRunner
     {
         private DefaultIcebergQueryRunnerMain() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logger log = Logger.get(DefaultIcebergQueryRunnerMain.class);
@@ -563,7 +556,7 @@ public final class IcebergQueryRunner
     {
         private IcebergQueryRunnerWithTaskRetries() {}
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logger log = Logger.get(IcebergQueryRunnerWithTaskRetries.class);

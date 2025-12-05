@@ -118,9 +118,15 @@ final class TestIcebergS3TablesConnectorSmokeTest
     }
 
     @Override
-    protected void dropTableFromMetastore(String tableName)
+    protected void dropTableFromCatalog(String tableName)
     {
         throw new UnsupportedOperationException();
+    }
+
+    @Override
+    protected void verifyAnalyzeFailurePermissible(Exception e)
+    {
+        assertThat(e).hasMessageContaining("S3 Tables do not support analyze");
     }
 
     @Test

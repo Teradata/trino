@@ -180,10 +180,11 @@ public class BenchmarkScanFilterAndProjectOperator
                     0,
                     new PlanNodeId("test"),
                     new PlanNodeId("test_source"),
-                    (catalog) -> (session, split, table, columns, dynamicFilter) -> new FixedPageSource(inputPages),
+                    (_) -> (_, _, _, _, _, _) -> new FixedPageSource(inputPages),
                     (_) -> pageProcessor,
                     TEST_TABLE_HANDLE,
                     columnHandles,
+                    types,
                     DynamicFilter.EMPTY,
                     types,
                     FILTER_AND_PROJECT_MIN_OUTPUT_PAGE_SIZE,
@@ -285,7 +286,7 @@ public class BenchmarkScanFilterAndProjectOperator
         context.cleanup();
     }
 
-    public static void main(String[] args)
+    static void main()
             throws RunnerException
     {
         benchmark(BenchmarkScanFilterAndProjectOperator.class).run();

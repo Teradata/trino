@@ -56,6 +56,7 @@ import static com.google.common.base.Preconditions.checkState;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.concurrent.MoreFutures.tryGetFutureValue;
+import static io.trino.plugin.iceberg.IcebergSessionProperties.COLLECT_EXTENDED_STATISTICS_ON_WRITE;
 import static io.trino.plugin.iceberg.IcebergTestUtils.FILE_IO_FACTORY;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getFileSystemFactory;
 import static io.trino.plugin.iceberg.IcebergTestUtils.getMetadataFileAndUpdatedMillis;
@@ -237,8 +238,8 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertUpdate(format("INSERT INTO %s values(2, 'USA', false)", tableName), 1);
 
         String tableLocation = getTableLocation(tableName);
-        // Drop table from hive metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        // Drop table from catalog and use the same table name to register again with the metadata
+        dropTableFromCatalog(tableName);
 
         assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
 
@@ -262,8 +263,8 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertUpdate(format("COMMENT ON COLUMN %s.c is 'c-comment'", tableName));
 
         String tableLocation = getTableLocation(tableName);
-        // Drop table from hive metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        // Drop table from catalog and use the same table name to register again with the metadata
+        dropTableFromCatalog(tableName);
 
         assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
 
@@ -284,8 +285,8 @@ public abstract class BaseIcebergConnectorSmokeTest
 
         String tableLocation = getTableLocation(tableName);
         String showCreateTableOld = (String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue();
-        // Drop table from hive metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        // Drop table from catalog and use the same table name to register again with the metadata
+        dropTableFromCatalog(tableName);
 
         assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
         String showCreateTableNew = (String) computeActual("SHOW CREATE TABLE " + tableName).getOnlyValue();
@@ -304,8 +305,8 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertUpdate(format("INSERT INTO %s values(2, 'USA', false)", tableName), 1);
 
         String tableLocation = getTableLocation(tableName);
-        // Drop table from hive metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        // Drop table from catalog and use the same table name to register again with the metadata
+        dropTableFromCatalog(tableName);
 
         assertUpdate("CALL system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "')");
         assertUpdate(format("INSERT INTO %s values(3, 'POLAND', true)", tableName), 1);
@@ -347,7 +348,7 @@ public abstract class BaseIcebergConnectorSmokeTest
         String tableLocation = getTableLocation(tableName);
         String tableNameNew = tableName + "_new";
         // Drop table from glue metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        dropTableFromCatalog(tableName);
 
         assertUpdate(format("CALL system.register_table (CURRENT_SCHEMA, '%s', '%s')", tableNameNew, tableLocation));
         assertUpdate(format("INSERT INTO %s values(3, 'POLAND', true)", tableNameNew), 1);
@@ -372,8 +373,8 @@ public abstract class BaseIcebergConnectorSmokeTest
         String tableLocation = getTableLocation(tableName);
         String metadataLocation = getMetadataLocation(tableName);
         String metadataFileName = metadataLocation.substring(metadataLocation.lastIndexOf("/") + 1);
-        // Drop table from hive metastore and use the same table name to register again with the metadata
-        dropTableFromMetastore(tableName);
+        // Drop table from catalog and use the same table name to register again with the metadata
+        dropTableFromCatalog(tableName);
 
         assertUpdate("CALL iceberg.system.register_table (CURRENT_SCHEMA, '" + tableName + "', '" + tableLocation + "', '" + metadataFileName + "')");
         assertUpdate(format("INSERT INTO %s values(3, 'POLAND', true)", tableName), 1);
@@ -415,7 +416,7 @@ public abstract class BaseIcebergConnectorSmokeTest
         assertThat(getTableLocation(registeredTableName)).isEqualTo(tableLocationWithTrailingSpace);
 
         assertUpdate("DROP TABLE " + registeredTableName);
-        dropTableFromMetastore(tableName);
+        dropTableFromCatalog(tableName);
     }
 
     @Test
@@ -893,6 +894,34 @@ public abstract class BaseIcebergConnectorSmokeTest
         }
     }
 
+    @Test
+    public void testAnalyze()
+    {
+        Session noStatsOnWrite = Session.builder(getSession())
+                .setCatalogSessionProperty("iceberg", COLLECT_EXTENDED_STATISTICS_ON_WRITE, "false")
+                .build();
+
+        try (TestTable table = newTrinoTable("test_analyze", "(id int)")) {
+            assertUpdate(noStatsOnWrite, "INSERT INTO " + table.getName() + " VALUES 1, 2, 3", 3);
+
+            try {
+                assertUpdate("ANALYZE " + table.getName());
+            }
+            catch (Exception e) {
+                verifyAnalyzeFailurePermissible(e);
+                return;
+            }
+            assertThat(query("SHOW STATS FOR " + table.getName())).result()
+                    .projected("column_name", "distinct_values_count")
+                    .matches("VALUES (VARCHAR 'id', 3e0), (null, null)");
+        }
+    }
+
+    protected void verifyAnalyzeFailurePermissible(Exception e)
+    {
+        throw new AssertionError("Unexpected analyze failure", e);
+    }
+
     protected void dropSchema(String schema)
             throws Exception
     {
@@ -946,7 +975,7 @@ public abstract class BaseIcebergConnectorSmokeTest
         throw new IllegalStateException("Location not found in SHOW CREATE TABLE result");
     }
 
-    protected abstract void dropTableFromMetastore(String tableName);
+    protected abstract void dropTableFromCatalog(String tableName);
 
     protected abstract String getMetadataLocation(String tableName);
 

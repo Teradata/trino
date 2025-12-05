@@ -47,6 +47,7 @@ import io.trino.spi.security.ConnectorIdentity;
 import io.trino.spi.security.Identity;
 import io.trino.spi.security.SelectedRole;
 import io.trino.spi.statistics.TableStatistics;
+import io.trino.spi.type.ArrayType;
 import io.trino.spi.type.DateType;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.Type;
@@ -188,6 +189,9 @@ import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SELECT_COLUMN;
 import static io.trino.testing.TestingAccessControlManager.TestingPrivilegeType.SHOW_COLUMNS;
 import static io.trino.testing.TestingAccessControlManager.privilege;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_MERGE;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_ROW_LEVEL_UPDATE;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_UPDATE;
 import static io.trino.testing.TestingNames.randomNameSuffix;
 import static io.trino.testing.TestingSession.testSessionBuilder;
 import static io.trino.testing.TransactionBuilder.transaction;
@@ -250,6 +254,7 @@ public abstract class BaseHiveConnectorTest
                 "hive_timestamp_nanos",
                 "hive",
                 ImmutableMap.of("hive.timestamp-precision", "NANOSECONDS"));
+        queryRunner.execute("CREATE SCHEMA hive_timestamp_nanos.tpch");
         return queryRunner;
     }
 
@@ -288,7 +293,9 @@ public abstract class BaseHiveConnectorTest
                  SUPPORTS_DEFAULT_COLUMN_VALUE,
                  SUPPORTS_DROP_FIELD,
                  SUPPORTS_LIMIT_PUSHDOWN,
+                 // MERGE, UPDATE are supported only on transactional tables, so not supported in current setup
                  SUPPORTS_MERGE,
+                 SUPPORTS_UPDATE,
                  SUPPORTS_NOT_NULL_CONSTRAINT,
                  SUPPORTS_REFRESH_VIEW,
                  SUPPORTS_RENAME_FIELD,
@@ -304,6 +311,9 @@ public abstract class BaseHiveConnectorTest
     @Override
     public void verifySupportsUpdateDeclaration()
     {
+        // otherwise we wouldn't need to override the test from superclass
+        assertThat(hasBehavior(SUPPORTS_UPDATE)).isFalse();
+
         try (TestTable table = newTrinoTable("test_row_update", "AS SELECT * FROM nation")) {
             assertQueryFails("UPDATE " + table.getName() + " SET nationkey = 100 WHERE regionkey = 2", MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
         }
@@ -313,8 +323,25 @@ public abstract class BaseHiveConnectorTest
     @Override
     public void verifySupportsRowLevelUpdateDeclaration()
     {
+        // otherwise we wouldn't need to override the test from superclass
+        assertThat(hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE)).isFalse();
+
         try (TestTable table = newTrinoTable("test_supports_update", "AS SELECT * FROM nation")) {
             assertQueryFails("UPDATE " + table.getName() + " SET nationkey = nationkey * 100 WHERE regionkey = 2", MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
+        }
+    }
+
+    @Test
+    @Override
+    public void verifySupportsMergeDeclaration()
+    {
+        // otherwise we wouldn't need to override the test from superclass
+        assertThat(hasBehavior(SUPPORTS_MERGE)).isFalse();
+
+        try (TestTable table = newTrinoTable("test_supports_merge", "(key int, data varchar)")) {
+            assertQueryFails(
+                    "MERGE INTO " + table.getName() + " USING (VALUES 42) t(dummy) ON false WHEN NOT MATCHED THEN INSERT VALUES (1, 'alice')",
+                    MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
         }
     }
 
@@ -369,82 +396,6 @@ public abstract class BaseHiveConnectorTest
     {
         assertThatThrownBy(super::testDeleteWithSubquery)
                 .hasStackTraceContaining(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdate()
-    {
-        assertThatThrownBy(super::testUpdate)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateMultipleCondition()
-    {
-        assertThatThrownBy(super::testUpdateMultipleCondition)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateWithNullValues()
-    {
-        assertThatThrownBy(super::testUpdateWithNullValues)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testRowLevelUpdate()
-    {
-        assertThatThrownBy(super::testRowLevelUpdate)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateCaseSensitivity()
-    {
-        assertThatThrownBy(super::testUpdateCaseSensitivity)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateRowConcurrently()
-            throws Exception
-    {
-        // TODO (https://github.com/trinodb/trino/issues/10518) test this with a TestHiveConnectorTest version that creates ACID tables by default, or in some other way
-        assertThatThrownBy(super::testUpdateRowConcurrently)
-                .hasMessage("Unexpected concurrent update failure")
-                .cause()
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateWithPredicates()
-    {
-        assertThatThrownBy(super::testUpdateWithPredicates)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateRowType()
-    {
-        assertThatThrownBy(super::testUpdateRowType)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
-    }
-
-    @Test
-    @Override
-    public void testUpdateAllValues()
-    {
-        assertThatThrownBy(super::testUpdateAllValues)
-                .hasMessage(MODIFYING_NON_TRANSACTIONAL_TABLE_MESSAGE);
     }
 
     @Test
@@ -1658,6 +1609,33 @@ public abstract class BaseHiveConnectorTest
 
             assertUpdate("DROP TABLE " + tableName);
         }
+    }
+
+    @Test
+    public void testIoExplainWithStructuralTypes()
+    {
+        assertUpdate("CREATE TABLE io_explain_test_structural_type(array_col ARRAY(int)) WITH (format='PARQUET')");
+        EstimatedStatsAndCost estimate = new EstimatedStatsAndCost(0.0, 0.0, 0.0, 0.0, 0.0);
+        assertThat(getIoPlanCodec().fromJson((String) getOnlyElement(computeActual("EXPLAIN (TYPE IO, FORMAT JSON) SELECT * FROM io_explain_test_structural_type WHERE array_col = ARRAY[1]").getOnlyColumnAsSet())))
+                .isEqualTo(new IoPlan(
+                        ImmutableSet.of(new TableColumnInfo(
+                                new CatalogSchemaTableName(catalog, "tpch", "io_explain_test_structural_type"),
+                                new IoPlanPrinter.Constraint(
+                                        false,
+                                        ImmutableSet.of(
+                                                new ColumnConstraint(
+                                                        "array_col",
+                                                        new ArrayType(INTEGER),
+                                                        new FormattedDomain(
+                                                                false,
+                                                                ImmutableSet.of(
+                                                                        new FormattedRange(
+                                                                                new FormattedMarker(Optional.of("<UNREPRESENTABLE VALUE>"), EXACTLY),
+                                                                                new FormattedMarker(Optional.of("<UNREPRESENTABLE VALUE>"), EXACTLY))))))),
+                                estimate)),
+                        Optional.empty(),
+                        estimate));
+        assertUpdate("DROP TABLE io_explain_test_structural_type");
     }
 
     @Test
@@ -3235,8 +3213,7 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    @Override
-    public void testInsert()
+    public void testInsertHiveSpecific()
     {
         testWithAllStorageFormats(this::testInsert);
     }
@@ -3520,15 +3497,7 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    @Override
-    public void testInsertHighestUnicodeCharacter()
-    {
-        abort("Covered by testInsertUnicode");
-    }
-
-    @Test
-    @Override
-    public void testInsertUnicode()
+    public void testInsertUnicodeHiveSpecific()
     {
         testWithAllStorageFormats(this::testInsertUnicode);
     }
@@ -5149,11 +5118,8 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    @Override
-    public void testRenameColumn()
+    public void testRenameColumnHiveSpecific()
     {
-        super.testRenameColumn();
-
         // Additional tests for hive partition columns invariants
         @Language("SQL") String createTable = "" +
                 "CREATE TABLE test_rename_column\n" +
@@ -5173,11 +5139,8 @@ public abstract class BaseHiveConnectorTest
     }
 
     @Test
-    @Override
-    public void testDropColumn()
+    public void testDropColumnHiveSpecific()
     {
-        super.testDropColumn();
-
         // Additional tests for hive partition columns invariants
         @Language("SQL") String createTable = "" +
                 "CREATE TABLE test_drop_column\n" +
@@ -8873,7 +8836,8 @@ public abstract class BaseHiveConnectorTest
 
         // Presto view created with config property set to MILLIS and session property not set
         String prestoViewNameDefault = "presto_view_ts_default_" + randomNameSuffix();
-        assertUpdate(defaultSession, "CREATE VIEW " + prestoViewNameDefault + " AS SELECT *  FROM " + tableName);
+        assertUpdate(defaultSession, "CREATE VIEW " + prestoViewNameDefault + " AS SELECT *  FROM hive.tpch." + tableName);
+        assertUpdate(defaultSession, "CREATE VIEW hive_timestamp_nanos.tpch." + prestoViewNameDefault + " AS SELECT *  FROM hive.tpch." + tableName);
 
         assertThat(query(defaultSession, "SELECT ts FROM " + prestoViewNameDefault)).matches("VALUES TIMESTAMP '1990-01-02 12:13:14.123'");
 
@@ -8888,7 +8852,8 @@ public abstract class BaseHiveConnectorTest
 
         // Presto view created with config property set to MILLIS and session property set to NANOS
         String prestoViewNameNanos = "presto_view_ts_nanos_" + randomNameSuffix();
-        assertUpdate(nanosSessions, "CREATE VIEW " + prestoViewNameNanos + " AS SELECT *  FROM " + tableName);
+        assertUpdate(nanosSessions, "CREATE VIEW " + prestoViewNameNanos + " AS SELECT *  FROM hive.tpch." + tableName);
+        assertUpdate(nanosSessions, "CREATE VIEW hive_timestamp_nanos.tpch." + prestoViewNameNanos + " AS SELECT *  FROM hive.tpch." + tableName);
 
         assertThat(query(defaultSession, "SELECT ts FROM " + prestoViewNameNanos)).matches("VALUES TIMESTAMP '1990-01-02 12:13:14.123000000'");
 

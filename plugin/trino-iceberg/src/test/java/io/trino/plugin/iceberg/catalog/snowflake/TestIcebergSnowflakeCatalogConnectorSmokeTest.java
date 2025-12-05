@@ -523,6 +523,14 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     }
 
     @Test
+    @Override
+    public void testAnalyze()
+    {
+        assertThatThrownBy(super::testAnalyze)
+                .hasMessageMatching("Snowflake managed Iceberg tables do not support modifications");
+    }
+
+    @Test
     public void testNation()
     {
         assertQuery("SELECT count(*) FROM " + TpchTable.NATION.getTableName(), "VALUES 25");
@@ -729,7 +737,7 @@ public class TestIcebergSnowflakeCatalogConnectorSmokeTest
     }
 
     @Override
-    protected void dropTableFromMetastore(String tableName)
+    protected void dropTableFromCatalog(String tableName)
     {
         // used for register table, which is not supported for Iceberg Snowflake catalogs
         throw new UnsupportedOperationException("dropTableFromMetastore is not supported for Iceberg snowflake catalog");

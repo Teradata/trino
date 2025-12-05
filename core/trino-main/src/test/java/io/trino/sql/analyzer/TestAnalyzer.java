@@ -141,6 +141,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_ARGUMENTS;
 import static io.trino.spi.StandardErrorCode.INVALID_COLUMN_REFERENCE;
 import static io.trino.spi.StandardErrorCode.INVALID_COPARTITIONING;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
+import static io.trino.spi.StandardErrorCode.INVALID_GRACE_PERIOD;
 import static io.trino.spi.StandardErrorCode.INVALID_LABEL;
 import static io.trino.spi.StandardErrorCode.INVALID_LIMIT_CLAUSE;
 import static io.trino.spi.StandardErrorCode.INVALID_LITERAL;
@@ -5818,11 +5819,11 @@ public class TestAnalyzer
         TestingAccessControlManager accessControlManager = new TestingAccessControlManager(transactionManager, emptyEventListenerManager(), new SecretsResolver(ImmutableMap.of()));
         accessControlManager.setSystemAccessControls(List.of(AllowAllSystemAccessControl.INSTANCE));
 
-        analyze("SELECT * FROM fresh_materialized_view");
+        analyze(CLIENT_SESSION, "SELECT * FROM fresh_materialized_view", accessControlManager);
 
         // materialized view analysis should succeed even if access to storage table is denied when querying the table directly
         accessControlManager.deny(privilege("t2.a", SELECT_COLUMN));
-        analyze("SELECT * FROM fresh_materialized_view");
+        analyze(CLIENT_SESSION, "SELECT * FROM fresh_materialized_view", accessControlManager);
 
         accessControlManager.deny(privilege("fresh_materialized_view.a", SELECT_COLUMN));
         assertFails(
@@ -5831,6 +5832,15 @@ public class TestAnalyzer
                 accessControlManager)
                 .hasErrorCode(PERMISSION_DENIED)
                 .hasMessage("Access Denied: Cannot select from columns [a, b] in table or view tpch.s1.fresh_materialized_view");
+    }
+
+    @Test
+    public void testCreateMaterializedViewWithNegativeGracePeriod()
+    {
+        assertFails("CREATE MATERIALIZED VIEW mv_negative_grace_period GRACE PERIOD INTERVAL -'1' HOUR AS SELECT * FROM nation")
+                .hasErrorCode(INVALID_GRACE_PERIOD)
+                .hasMessage("line 1:64: Grace period cannot be negative")
+                .hasLocation(1, 64);
     }
 
     @Test
@@ -7889,6 +7899,7 @@ public class TestAnalyzer
                 Optional.of("s1"),
                 ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty())),
                 Optional.of(Duration.ZERO),
+                Optional.empty(),
                 Optional.of("comment"),
                 Identity.ofUser("user"),
                 ImmutableList.of(),
@@ -8019,6 +8030,7 @@ public class TestAnalyzer
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty())),
                         Optional.of(Duration.ZERO),
                         Optional.empty(),
+                        Optional.empty(),
                         Identity.ofUser("some user"),
                         ImmutableList.of(),
                         Optional.of(new CatalogSchemaTableName(TPCH_CATALOG, "s1", "t1"))),
@@ -8073,6 +8085,7 @@ public class TestAnalyzer
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty()), new ViewColumn("b", BIGINT.getTypeId(), Optional.empty())),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
                         Identity.ofUser("some user"),
                         ImmutableList.of(),
                         // t3 has a, b column and hidden column x
@@ -8091,6 +8104,7 @@ public class TestAnalyzer
                         Optional.of(TPCH_CATALOG),
                         Optional.of("s1"),
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty())),
+                        Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
                         Identity.ofUser("some user"),
@@ -8112,6 +8126,7 @@ public class TestAnalyzer
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty()), new ViewColumn("c", BIGINT.getTypeId(), Optional.empty())),
                         Optional.empty(),
                         Optional.empty(),
+                        Optional.empty(),
                         Identity.ofUser("some user"),
                         ImmutableList.of(),
                         Optional.of(new CatalogSchemaTableName(TPCH_CATALOG, "s1", "t2"))),
@@ -8129,6 +8144,7 @@ public class TestAnalyzer
                         Optional.of(TPCH_CATALOG),
                         Optional.of("s1"),
                         ImmutableList.of(new ViewColumn("a", BIGINT.getTypeId(), Optional.empty()), new ViewColumn("b", RowType.anonymousRow(TINYINT).getTypeId(), Optional.empty())),
+                        Optional.empty(),
                         Optional.empty(),
                         Optional.empty(),
                         Identity.ofUser("some user"),

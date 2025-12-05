@@ -3814,7 +3814,7 @@ public class DeltaLakeMetadata
     }
 
     @Override
-    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata)
+    public TableStatisticsMetadata getStatisticsCollectionMetadataForWrite(ConnectorSession session, ConnectorTableMetadata tableMetadata, boolean tableReplace)
     {
         if (!isCollectExtendedStatisticsColumnStatisticsOnWrite(session)) {
             return TableStatisticsMetadata.empty();

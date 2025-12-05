@@ -176,6 +176,7 @@ import io.trino.sql.tree.GroupingSets;
 import io.trino.sql.tree.Identifier;
 import io.trino.sql.tree.Insert;
 import io.trino.sql.tree.Intersect;
+import io.trino.sql.tree.IntervalLiteral;
 import io.trino.sql.tree.Join;
 import io.trino.sql.tree.JoinCriteria;
 import io.trino.sql.tree.JoinOn;
@@ -227,7 +228,6 @@ import io.trino.sql.tree.ResetSession;
 import io.trino.sql.tree.ResetSessionAuthorization;
 import io.trino.sql.tree.Revoke;
 import io.trino.sql.tree.Rollback;
-import io.trino.sql.tree.Row;
 import io.trino.sql.tree.RowPattern;
 import io.trino.sql.tree.SampledRelation;
 import io.trino.sql.tree.SecurityCharacteristic;
@@ -338,6 +338,7 @@ import static io.trino.spi.StandardErrorCode.INVALID_COLUMN_REFERENCE;
 import static io.trino.spi.StandardErrorCode.INVALID_COPARTITIONING;
 import static io.trino.spi.StandardErrorCode.INVALID_DEFAULT_COLUMN_VALUE;
 import static io.trino.spi.StandardErrorCode.INVALID_FUNCTION_ARGUMENT;
+import static io.trino.spi.StandardErrorCode.INVALID_GRACE_PERIOD;
 import static io.trino.spi.StandardErrorCode.INVALID_LIMIT_CLAUSE;
 import static io.trino.spi.StandardErrorCode.INVALID_ORDER_BY;
 import static io.trino.spi.StandardErrorCode.INVALID_PARTITION_BY;
@@ -1478,7 +1479,12 @@ class StatementAnalyzer
             if (node.isReplace() && node.isNotExists()) {
                 throw semanticException(NOT_SUPPORTED, node, "'CREATE OR REPLACE' and 'IF NOT EXISTS' clauses can not be used together");
             }
-            node.getGracePeriod().ifPresent(gracePeriod -> analyzeExpression(gracePeriod, Scope.create()));
+            node.getGracePeriod().ifPresent(gracePeriod -> {
+                if (gracePeriod.getSign() == IntervalLiteral.Sign.NEGATIVE) {
+                    throw semanticException(INVALID_GRACE_PERIOD, gracePeriod, "Grace period cannot be negative");
+                }
+                analyzeExpression(gracePeriod, Scope.create());
+            });
 
             // analyze the query that creates the view
             StatementAnalyzer analyzer = statementAnalyzerFactory.createStatementAnalyzer(analysis, session, warningCollector, CorrelationSupport.ALLOWED);
@@ -4082,31 +4088,15 @@ class StatementAnalyzer
             // add coercions
             for (Expression row : node.getRows()) {
                 Type actualType = analysis.getType(row);
-                if (row instanceof Row value) {
-                    // coerce Row by fields to preserve Row structure and enable optimizations based on this structure, e.g. pruning, predicate extraction
-                    // TODO coerce the whole Row and add an Optimizer rule that converts CAST(ROW(...) AS ...) into ROW(CAST(...), CAST(...), ...).
-                    //  The rule would also handle Row-type expressions that were specified as CAST(ROW). It should support multiple casts over a ROW.
-                    for (int i = 0; i < actualType.getTypeParameters().size(); i++) {
-                        Expression item = value.getFields().get(i).getExpression();
-                        Type actualItemType = actualType.getTypeParameters().get(i);
-                        Type expectedItemType = commonSuperType.getTypeParameters().get(i);
-                        if (!actualItemType.equals(expectedItemType)) {
-                            analysis.addCoercion(item, expectedItemType);
-                        }
-                    }
-                }
-                else if (actualType instanceof RowType) {
-                    // coerce row-type expression as a whole
-                    if (!actualType.equals(commonSuperType)) {
-                        analysis.addCoercion(row, commonSuperType);
-                    }
-                }
-                else {
+
+                Type targetType = commonSuperType;
+                if (!(actualType instanceof RowType)) {
                     // coerce field. it will be wrapped in Row by Planner
-                    Type superType = getOnlyElement(commonSuperType.getTypeParameters());
-                    if (!actualType.equals(superType)) {
-                        analysis.addCoercion(row, superType);
-                    }
+                    targetType = getOnlyElement(commonSuperType.getTypeParameters());
+                }
+
+                if (!actualType.equals(targetType)) {
+                    analysis.addCoercion(row, targetType);
                 }
             }
 

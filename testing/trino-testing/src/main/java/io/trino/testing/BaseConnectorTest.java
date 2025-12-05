@@ -127,6 +127,7 @@ import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_FEDERATE
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_FUNCTION;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_MATERIALIZED_VIEW;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_MATERIALIZED_VIEW_GRACE_PERIOD;
+import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_OR_REPLACE_TABLE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_SCHEMA;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_CREATE_TABLE;
@@ -261,6 +262,7 @@ public abstract class BaseConnectorTest
     {
         String schemaName = getSession().getSchema().orElseThrow();
         assertThat((String) computeScalar("SHOW CREATE SCHEMA " + schemaName))
+                // If the connector reports additional attributes, the expected value needs to be adjusted in the test subclass
                 .isEqualTo(format("CREATE SCHEMA %s.%s", getSession().getCatalog().orElseThrow(), schemaName));
     }
 
@@ -1594,6 +1596,24 @@ public abstract class BaseConnectorTest
 
             assertUpdate("DROP MATERIALIZED VIEW " + viewName);
         }
+    }
+
+    @Test
+    public void testMaterializedViewWhenStale()
+    {
+        skipTestUnless(hasBehavior(SUPPORTS_CREATE_MATERIALIZED_VIEW));
+
+        String catalog = getSession().getCatalog().orElseThrow();
+        String viewName = "test_mv_when_stale_" + randomNameSuffix();
+
+        if (!hasBehavior(SUPPORTS_CREATE_MATERIALIZED_VIEW_WHEN_STALE)) {
+            assertQueryFails(
+                    "CREATE MATERIALIZED VIEW " + viewName + " WHEN STALE FAIL AS SELECT * FROM nation",
+                    "line 1:1: Catalog '%s' does not support WHEN STALE".formatted(catalog));
+            return;
+        }
+
+        throw new UnsupportedOperationException("Not implemented");
     }
 
     @Test
@@ -5302,11 +5322,8 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdate()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
+
         try (TestTable table = newTrinoTable("test_row_update", "AS SELECT * FROM nation")) {
             assertUpdate("UPDATE " + table.getName() + " SET nationkey = 100 WHERE regionkey = 2", 5);
             assertQuery("SELECT count(*) FROM " + table.getName() + " WHERE nationkey = 100", "VALUES 5");
@@ -5362,11 +5379,7 @@ public abstract class BaseConnectorTest
     public void testRowLevelUpdate()
     {
         skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA));
-        if (!hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update", "AS TABLE tpch.tiny.nation", "nationkey,regionkey")) {
             String tableName = table.getName();
@@ -5691,11 +5704,7 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateWithPredicates()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_LEVEL_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update_with_predicates", "(a INT, b INT, c INT)", "a")) {
             String tableName = table.getName();
@@ -5714,15 +5723,8 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateRowType()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
-
-        if (!hasBehavior(SUPPORTS_ROW_TYPE)) {
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
+        skipTestUnless(hasBehavior(SUPPORTS_ROW_TYPE));
 
         try (TestTable table = newTrinoTable("test_update_with_predicates_on_row_types", "(int_t INT, row_t ROW(f1 INT, f2 INT))")) {
             String tableName = table.getName();
@@ -5754,11 +5756,7 @@ public abstract class BaseConnectorTest
     @Test
     public void testUpdateAllValues()
     {
-        if (!hasBehavior(SUPPORTS_UPDATE)) {
-            // Note this change is a no-op, if actually run
-            assertQueryFails("UPDATE nation SET nationkey = nationkey + regionkey WHERE regionkey < 1", MODIFYING_ROWS_MESSAGE);
-            return;
-        }
+        skipTestUnless(hasBehavior(SUPPORTS_UPDATE));
 
         try (TestTable table = createTestTableForWrites("test_update_all_columns", "(a INT, b INT, c INT)", "a")) {
             String tableName = table.getName();
@@ -5927,6 +5925,22 @@ public abstract class BaseConnectorTest
         }
         finally {
             assertUpdate("DROP TABLE IF EXISTS " + tableName);
+        }
+    }
+
+    @Test
+    public void verifySupportsMergeDeclaration()
+    {
+        if (hasBehavior(SUPPORTS_MERGE)) {
+            // Covered by "testMerge*" tests
+            return;
+        }
+
+        skipTestUnless(hasBehavior(SUPPORTS_CREATE_TABLE_WITH_DATA));
+        try (TestTable table = newTrinoTable("test_supports_merge", "(key int, data varchar)")) {
+            assertQueryFails(
+                    "MERGE INTO " + table.getName() + " USING (VALUES 42) t(dummy) ON false WHEN NOT MATCHED THEN INSERT VALUES (1, 'alice')",
+                    MODIFYING_ROWS_MESSAGE);
         }
     }
 
@@ -6595,12 +6609,12 @@ public abstract class BaseConnectorTest
         assertUpdate("DROP TABLE " + source);
     }
 
-    protected void createTableForWrites(String createTable, String tableName, Optional<String> primaryKey)
+    protected void createTableForWrites(@Language("SQL") String createTable, String tableName, Optional<String> primaryKey)
     {
         createTableForWrites(createTable, tableName, primaryKey, OptionalInt.empty());
     }
 
-    protected void createTableForWrites(String createTable, String tableName, Optional<String> primaryKey, OptionalInt updateCount)
+    protected void createTableForWrites(@Language("SQL") String createTable, String tableName, Optional<String> primaryKey, OptionalInt updateCount)
     {
         updateCount.ifPresentOrElse(count -> assertUpdate(format(createTable, tableName), count), () -> assertUpdate(format(createTable, tableName)));
     }

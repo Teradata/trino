@@ -5,7 +5,7 @@
     <parent>
         <groupId>io.airlift</groupId>
         <artifactId>airbase</artifactId>
-        <version>329</version>
+        <version>331</version>
     </parent>
 
     <groupId>io.trino</groupId>
@@ -182,16 +182,16 @@
         <air.test.jvm.additional-arguments>${air.test.jvm.additional-arguments.default}</air.test.jvm.additional-arguments>
 
         <!-- keep dependency properties sorted -->
-        <dep.airlift.version>380</dep.airlift.version>
+        <dep.airlift.version>384</dep.airlift.version>
         <dep.alluxio.version>2.9.6</dep.alluxio.version>
         <dep.antlr.version>4.13.2</dep.antlr.version>
         <dep.avro.version>1.12.1</dep.avro.version>
-        <dep.aws-sdk.version>1.12.793</dep.aws-sdk.version>
+        <dep.aws-sdk.version>1.12.794</dep.aws-sdk.version>
         <dep.cassandra.version>4.17.0</dep.cassandra.version>
         <dep.confluent.version>7.8.0</dep.confluent.version>
         <dep.docker.images.version>119</dep.docker.images.version>
         <dep.drift.version>1.24</dep.drift.version>
-        <dep.flyway.version>11.17.1</dep.flyway.version>
+        <dep.flyway.version>11.17.2</dep.flyway.version>
         <dep.frontend-maven-plugin.version>1.15.4</dep.frontend-maven-plugin.version>
         <dep.frontend-node.version>v22.14.0</dep.frontend-node.version>
         <dep.frontend-npm.version>11.2.0</dep.frontend-npm.version>
@@ -208,7 +208,7 @@
         <dep.plugin.failsafe.version>${dep.plugin.surefire.version}</dep.plugin.failsafe.version>
         <dep.protobuf.version>3.25.8</dep.protobuf.version>
         <dep.snowflake.version>3.27.1</dep.snowflake.version>
-        <dep.swagger.version>2.2.40</dep.swagger.version>
+        <dep.swagger.version>2.2.41</dep.swagger.version>
         <dep.takari.version>2.3.2</dep.takari.version>
         <dep.tcnative.version>2.0.74.Final</dep.tcnative.version>
         <dep.tempto.version>202</dep.tempto.version>
@@ -300,7 +300,7 @@
             <dependency>
                 <groupId>software.amazon.awssdk</groupId>
                 <artifactId>bom</artifactId>
-                <version>2.39.2</version>
+                <version>2.39.5</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -981,13 +981,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>trino-cache</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>trino-cli</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1082,13 +1075,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>trino-filesystem-cache-alluxio</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>trino-filesystem-gcs</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1127,13 +1113,6 @@
                 <groupId>io.trino</groupId>
                 <artifactId>trino-hdfs</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>trino-hdfs</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
             </dependency>
 
             <dependency>
@@ -1345,13 +1324,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>trino-plugin-toolkit</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>trino-postgresql</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1379,13 +1351,6 @@
                 <groupId>io.trino</groupId>
                 <artifactId>trino-ranger</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>trino-ranger</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
             </dependency>
 
             <dependency>
@@ -1440,13 +1405,6 @@
 
             <dependency>
                 <groupId>io.trino</groupId>
-                <artifactId>trino-session-property-managers</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
                 <artifactId>trino-snowflake</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -1455,13 +1413,6 @@
                 <groupId>io.trino</groupId>
                 <artifactId>trino-spi</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>trino-spi</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
             </dependency>
 
             <dependency>
@@ -1537,13 +1488,6 @@
                 <groupId>io.trino</groupId>
                 <artifactId>trino-thrift-api</artifactId>
                 <version>${project.version}</version>
-            </dependency>
-
-            <dependency>
-                <groupId>io.trino</groupId>
-                <artifactId>trino-thrift-api</artifactId>
-                <version>${project.version}</version>
-                <type>test-jar</type>
             </dependency>
 
             <dependency>
@@ -1909,7 +1853,7 @@
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-configuration2</artifactId>
-                <version>2.12.0</version>
+                <version>2.13.0</version>
             </dependency>
 
             <dependency>
@@ -2227,7 +2171,7 @@
             <dependency>
                 <groupId>org.bouncycastle</groupId>
                 <artifactId>bcprov-jdk18on</artifactId>
-                <version>1.82</version>
+                <version>1.83</version>
             </dependency>
 
             <dependency>
@@ -2314,7 +2258,7 @@
                 <!-- https://github.com/ClickHouse/clickhouse-docs/pull/2408/files -->
                 <groupId>org.lz4</groupId>
                 <artifactId>lz4-java</artifactId>
-                <version>1.8.0</version>
+                <version>1.8.1</version>
             </dependency>
 
             <dependency>
