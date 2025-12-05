@@ -32,6 +32,7 @@ import java.util.Locale;
 
 import static io.trino.plugin.tpch.TpchMetadata.TINY_SCHEMA_NAME;
 import static io.trino.testing.TestingSession.testSessionBuilder;
+import static java.lang.String.format;
 import static java.util.Objects.requireNonNull;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -58,10 +59,12 @@ public final class TeradataQueryRunner
 
         public void copyTable(QueryRunner queryRunner, QualifiedObjectName table, Session session)
         {
-            @Language("SQL") String sql = String.format("CREATE TABLE %s AS SELECT * FROM %s", table.objectName(), table);
+            @Language("SQL") String sql = format("CREATE TABLE %s AS SELECT * FROM %s", table.objectName(), table);
             queryRunner.execute(session, sql);
-            assertThat(queryRunner.execute(session, "SELECT count(*) FROM " + table.objectName()).getOnlyValue()).as("Table is not loaded properly: %s", new Object[] {
-                    table.objectName()}).isEqualTo(queryRunner.execute(session, "SELECT count(*) FROM " + table).getOnlyValue());
+            assertThat(queryRunner.execute(session, "SELECT count(*) FROM " + table.objectName())
+                    .getOnlyValue())
+                    .as("Table is not loaded properly: %s", new Object[] {table.objectName()})
+                    .isEqualTo(queryRunner.execute(session, "SELECT count(*) FROM " + table).getOnlyValue());
         }
 
         public void copyTpchTables(QueryRunner queryRunner, String sourceCatalog, String sourceSchema, Session session, Iterable<TpchTable<?>> tables)
@@ -100,21 +103,24 @@ public final class TeradataQueryRunner
                 runner.createCatalog("tpch", "tpch");
 
                 runner.installPlugin(new TeradataPlugin());
-                runner.createCatalog("teradata", "teradata", server.getCatalogProperties());
+                runner.createCatalog("teradata", "teradata", server.fetchCatalogProperties());
 
                 copyTpchTables(runner, "tpch", TINY_SCHEMA_NAME, initialTables);
             });
             return super.build();
         }
 
-        public static void main(String[] args)
+        static void main()
                 throws Exception
         {
             Logging logger = Logging.initialize();
             logger.setLevel("io.trino.plugin.teradata", Level.DEBUG);
             logger.setLevel("io.trino", Level.INFO);
             TestingTeradataServer server = new TestingTeradataServer("TeradataQueryRunner", false);
-            QueryRunner queryRunner = builder(server).addCoordinatorProperty("http-server.http.port", "8080").setInitialTables(TpchTable.getTables()).build();
+            QueryRunner queryRunner = builder(server)
+                    .addCoordinatorProperty("http-server.http.port", "8080")
+                    .setInitialTables(TpchTable.getTables())
+                    .build();
 
             Logger log = Logger.get(TeradataQueryRunner.class);
             log.info("======== SERVER STARTED ========");

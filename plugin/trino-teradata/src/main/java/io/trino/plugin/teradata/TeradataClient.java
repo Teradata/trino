@@ -24,7 +24,6 @@ import io.trino.plugin.jdbc.JdbcColumnHandle;
 import io.trino.plugin.jdbc.JdbcOutputTableHandle;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.JdbcTypeHandle;
-import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
 import io.trino.plugin.jdbc.WriteMapping;
@@ -47,7 +46,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Types;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -55,7 +53,6 @@ import java.util.OptionalLong;
 
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_INSENSITIVE;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_SENSITIVE;
-import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.PredicatePushdownController.CASE_INSENSITIVE_CHARACTER_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
 import static io.trino.plugin.jdbc.StandardColumnMappings.bigintColumnMapping;
@@ -90,52 +87,27 @@ import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.RealType.REAL;
 import static io.trino.spi.type.SmallintType.SMALLINT;
 import static io.trino.spi.type.TinyintType.TINYINT;
-import static io.trino.spi.type.VarcharType.createUnboundedVarcharType;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static java.lang.String.format;
 
 public class TeradataClient
         extends BaseJdbcClient
 {
-    private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
-    private final TeradataConfig.TeradataCaseSensitivity teradataJDBCCaseSensitivity;
-
     @Inject
     public TeradataClient(
             BaseJdbcConfig config,
-            TeradataConfig teradataConfig,
             ConnectionFactory connectionFactory,
             QueryBuilder queryBuilder,
             IdentifierMapping identifierMapping,
             RemoteQueryModifier remoteQueryModifier)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, remoteQueryModifier, true);
-        this.teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
     }
 
     @Override
     protected void createSchema(ConnectorSession session, Connection connection, String remoteSchemaName)
     {
-        execute(session, format(
-                "CREATE DATABASE %s AS PERMANENT = 60000000, SPOOL = 120000000",
-                quoted(remoteSchemaName)));
-    }
-
-    @Override
-    protected void copyTableSchema(ConnectorSession session, Connection connection, String catalogName, String schemaName, String tableName, String newTableName,
-            List<String> columnNames)
-    {
-        String tableCopyFormat = "CREATE TABLE %s AS ( SELECT * FROM %s ) WITH DATA";
-        String sql = format(
-                tableCopyFormat,
-                quoted(catalogName, schemaName, newTableName),
-                quoted(catalogName, schemaName, tableName));
-        try {
-            execute(session, connection, sql);
-        }
-        catch (SQLException e) {
-            throw new TrinoException(JDBC_ERROR, e);
-        }
+        execute(session, format("CREATE DATABASE %s AS PERMANENT = 60000000", quoted(remoteSchemaName)));
     }
 
     @Override
@@ -144,7 +116,9 @@ public class TeradataClient
     {
         int schemaNameLimit = databaseMetadata.getMaxSchemaNameLength();
         if (schemaName.length() > schemaNameLimit) {
-            throw new TrinoException(NOT_SUPPORTED, format("Schema name must be shorter than or equal to '%s' characters but got '%s'", schemaNameLimit, schemaName.length()));
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    format("Schema name must be shorter than or equal to '%s' characters but got '%s'", schemaNameLimit, schemaName.length()));
         }
     }
 
@@ -153,8 +127,9 @@ public class TeradataClient
             throws SQLException
     {
         if (tableName.length() > databaseMetadata.getMaxTableNameLength()) {
-            throw new TrinoException(NOT_SUPPORTED, format("Table name must be shorter than or equal to '%s' characters but got '%s'", databaseMetadata.getMaxTableNameLength(),
-                    tableName.length()));
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    format("Table name must be shorter than or equal to '%s' characters but got '%s'", databaseMetadata.getMaxTableNameLength(), tableName.length()));
         }
     }
 
@@ -163,8 +138,9 @@ public class TeradataClient
             throws SQLException
     {
         if (columnName.length() > databaseMetadata.getMaxColumnNameLength()) {
-            throw new TrinoException(NOT_SUPPORTED, format("Column name must be shorter than or equal to '%s' characters but got '%s': '%s'",
-                    databaseMetadata.getMaxColumnNameLength(), columnName.length(), columnName));
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    format("Column name must be shorter than or equal to '%s' characters but got '%s': '%s'", databaseMetadata.getMaxColumnNameLength(), columnName.length(), columnName));
         }
     }
 
@@ -173,7 +149,9 @@ public class TeradataClient
             throws SQLException
     {
         if (cascade) {
-            throw new TrinoException(NOT_SUPPORTED, "This connector does not support dropping schemas with CASCADE option");
+            throw new TrinoException(
+                    NOT_SUPPORTED,
+                    "This connector does not support dropping schemas with CASCADE option");
         }
         String dropSchema = "DROP DATABASE " + quoted(remoteSchemaName);
         execute(session, connection, dropSchema);
@@ -182,7 +160,7 @@ public class TeradataClient
     @Override
     public void renameSchema(ConnectorSession session, String schemaName, String newSchemaName)
     {
-        throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming schema");
+        throw new TrinoException(NOT_SUPPORTED, "This connector does not support renaming schemas");
     }
 
     @Override
@@ -230,7 +208,7 @@ public class TeradataClient
     @Override
     public void addColumn(ConnectorSession session, JdbcTableHandle handle, ColumnMetadata column, ColumnPosition position)
     {
-        throw new TrinoException(NOT_SUPPORTED, "This connector does not support add column operations");
+        throw new TrinoException(NOT_SUPPORTED, "This connector does not support adding columns");
     }
 
     @Override
@@ -240,24 +218,23 @@ public class TeradataClient
     }
 
     @Override
-    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName,
-            RemoteTableName remoteTableName)
+    protected Map<String, CaseSensitivity> getCaseSensitivityForColumns(ConnectorSession session, Connection connection, SchemaTableName schemaTableName, RemoteTableName remoteTableName)
     {
-        // try to use result set metadata from select * from table to populate the mapping
-        try {
-            HashMap<String, CaseSensitivity> caseMap = new HashMap<>();
-            String sql = format("select * from %s.%s where 0=1", schemaTableName.getSchemaName(), schemaTableName.getTableName());
-            PreparedStatement pstmt = connection.prepareStatement(sql);
-            ResultSetMetaData rsmd = pstmt.getMetaData();
-            int columnCount = rsmd.getColumnCount();
+        String sql = format("SELECT * FROM %s.%s WHERE 0=1", quoted(schemaTableName.getSchemaName()), quoted(schemaTableName.getTableName()));
+        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
+            ImmutableMap.Builder<String, CaseSensitivity> columns = ImmutableMap.builder();
+            ResultSetMetaData metaData = preparedStatement.getMetaData();
+            int columnCount = metaData.getColumnCount();
+
             for (int i = 1; i <= columnCount; i++) {
-                caseMap.put(rsmd.getColumnName(i), rsmd.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
+                columns.put(
+                        metaData.getColumnName(i),
+                        metaData.isCaseSensitive(i) ? CASE_SENSITIVE : CASE_INSENSITIVE);
             }
-            pstmt.close();
-            return caseMap;
+
+            return columns.buildOrThrow();
         }
         catch (SQLException e) {
-            // behavior of base jdbc
             return ImmutableMap.of();
         }
     }
@@ -265,7 +242,6 @@ public class TeradataClient
     @Override
     public Optional<ColumnMapping> toColumnMapping(ConnectorSession session, Connection connection, JdbcTypeHandle typeHandle)
     {
-        // this method should ultimately encompass all the expected teradata data types
         Optional<ColumnMapping> mapping = getForcedMappingToVarchar(typeHandle);
         if (mapping.isPresent()) {
             return mapping;
@@ -283,9 +259,7 @@ public class TeradataClient
             case Types.REAL:
             case Types.DOUBLE:
             case Types.FLOAT:
-                // teradata float is 64 bit
-                // trino double is 64 bit
-                // teradata float / real / double precision all map to jdbc type float
+                // FLOAT is a Teradata synonym for REAL and DOUBLE PRECISION
                 return Optional.of(doubleColumnMapping());
             case Types.NUMERIC:
             case Types.DECIMAL:
@@ -293,7 +267,6 @@ public class TeradataClient
             case Types.CHAR:
                 return Optional.of(charColumnMapping(typeHandle.requiredColumnSize(), deriveCaseSensitivity(typeHandle.caseSensitivity().orElse(null))));
             case Types.VARCHAR:
-                // see prior note on trino case sensitivity
                 return Optional.of(varcharColumnMapping(typeHandle.requiredColumnSize(), deriveCaseSensitivity(typeHandle.caseSensitivity().orElse(null))));
             case Types.DATE:
                 return Optional.of(dateColumnMappingUsingLocalDate());
@@ -319,36 +292,29 @@ public class TeradataClient
 
     private static ColumnMapping charColumnMapping(int charLength, boolean isCaseSensitive)
     {
-        if (charLength > CharType.MAX_LENGTH) {
-            return varcharColumnMapping(charLength, isCaseSensitive);
-        }
+        // Teradata supports max of 64k for char type
         CharType charType = createCharType(charLength);
         return ColumnMapping.sliceMapping(
                 charType,
                 charReadFunction(charType),
                 charWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private static ColumnMapping varcharColumnMapping(int varcharLength, boolean isCaseSensitive)
     {
-        VarcharType varcharType = varcharLength <= VarcharType.MAX_LENGTH
-                ? createVarcharType(varcharLength)
-                : createUnboundedVarcharType();
+        // Teradata supports max of 64k for varchar type
+        VarcharType varcharType = createVarcharType(varcharLength);
         return ColumnMapping.sliceMapping(
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? FULL_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private boolean deriveCaseSensitivity(CaseSensitivity caseSensitivity)
     {
-        return switch (teradataJDBCCaseSensitivity) {
-            case CASE_INSENSITIVE -> false;
-            case CASE_SENSITIVE -> true;
-            default -> caseSensitivity != null;
-        };
+        return caseSensitivity == CASE_SENSITIVE;
     }
 
     @Override
@@ -363,7 +329,7 @@ public class TeradataClient
             case Type typeInstance when typeInstance == DOUBLE -> WriteMapping.doubleMapping("double precision", doubleWriteFunction());
             case Type typeInstance when typeInstance == DATE -> WriteMapping.longMapping("date", dateWriteFunctionUsingLocalDate());
             case DecimalType decimalTypeInstance -> {
-                String dataType = String.format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
+                String dataType = format("decimal(%s, %s)", decimalTypeInstance.getPrecision(), decimalTypeInstance.getScale());
                 if (decimalTypeInstance.isShort()) {
                     yield WriteMapping.longMapping(dataType, shortDecimalWriteFunction(decimalTypeInstance));
                 }

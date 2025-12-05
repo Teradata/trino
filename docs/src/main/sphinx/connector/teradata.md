@@ -4,45 +4,44 @@
 <img src="../_static/img/teradata.png" class="connector-logo">
 ```
 
-The Teradata connector allows querying and creating tables in an external
-[Teradata](https://www.teradata.com/) database. This can be used to join 
-data between different systems like Teradata and Hive, or between different Teradata instances.
+The Teradata connector allows querying and creating tables in an 
+external [Teradata](https://www.teradata.com/) database. This can be used to join data between
+different systems like Teradata and Hive, or between different
+Teradata instances.
 
 ## Requirements
 
 To connect to Teradata, you need:
 
-- Teradata Database
-- Network access from the Trino coordinator and workers to Teradata. Port 
-  1025 is the default port
+- Teradata database.
+- Network access from the Trino coordinator and workers to Teradata. 
+- Port 1025 is the default port.
 
 ## Configuration
 
-To configure the Teradata connector, create a catalog properties file in
-`etc/catalog` named, for example, `example.properties`, to mount the Teradata
-connector as the `teradata` catalog. Create the file with the following 
-contents, replacing the connection properties as appropriate for your setup:
+The connector can query a database on a given Teradata instance. Create a catalog
+properties file that specifies the Teradata connector by setting the
+`connector.name` to `teradata`.
+
+For example, to access a database as the `example` catalog, create the file
+`etc/catalog/example.properties`. Replace the connection properties as
+appropriate for your setup:
 
 ```properties
 connector.name=teradata
 connection-url=jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGMECH=TD2
-connection-user=***
-connection-password=***
+connection-user=root
+connection-password=secret
 ```
 
 The `connection-url` defines the connection information and parameters to pass
-to the Teradata JDBC driver. The supported parameters for the URL are 
-available in the 
+to the Teradata JDBC driver. The parameters for the URL are available in the
 [Teradata JDBC documentation](https://teradata-docs.s3.amazonaws.com/doc/connectivity/jdbc/reference/current/jdbcug_chapter_2.html#BABJIHBJ).
-For example, the following `connection-url` configures character encoding, 
-transaction mode, and authentication.
 
-```properties
-connection-url=jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGMECH=TD2
-```
-
-The `connection-user` and `connection-password` are typically required and 
-determine the user credentials for the connection, often a service user.
+The `connection-user` and `connection-password` are typically required and
+determine the user credentials for the connection, often a service user. You can
+use {doc}`secrets </security/secrets>` to avoid actual values in the catalog
+properties files.
 
 ### Connection security
 
@@ -65,11 +64,15 @@ Teradata [JDBC documentation](https://teradata-docs.s3.amazonaws.com/doc/connect
 
 ### Multiple Teradata databases
 
-You can have as many catalogs as you need, so if you have additional Teradata
-databases, simply add another properties file to etc/catalog with a different
-name, making sure it ends in .properties. 
-For example, if you name the property file sales.properties, Trino creates a 
-catalog named sales using the configured connector.
+The Teradata connector can only access a single Teradata database within
+a single catalog. Thus, if you have multiple Teradata databases,
+or want to connect to multiple Teradata instances, you must configure
+multiple instances of the Teradata connector.
+
+To add another catalog, simply add another properties file to `etc/catalog`
+with a different name, making sure it ends in `.properties`. For example,
+if you name the property file `sales.properties`, Trino creates a
+catalog named `sales` using the configured connector.
 
 ## Type mapping
 
@@ -176,39 +179,14 @@ No other types are supported.
 ```{include} jdbc-type-mapping.fragment
 ```
 
-## Querying Teradata
-
-The Teradata connector provides a schema for every Teradata database. You can
-see the available Teradata databases by running SHOW SCHEMAS:
-
-```sql
-SHOW SCHEMAS FROM teradata;
-```
-
-If you have a Teradata database named sales, you can view the tables in this
-database by running SHOW TABLES:
-
-```sql
-SHOW TABLES FROM teradata.sales;
-```
-
-You can see a list of the columns in the orders table in the sales database
-using either of the following:
-
-```sql
-DESCRIBE teradata.sales.orders;
-SHOW COLUMNS FROM teradata.sales.orders;
-```
-
-Finally, you can access the orders table in the sales database:
-
-```sql
-SELECT * FROM teradata.sales.orders;
-```
-
 ## SQL support
 
-The connector provides read access to data and metadata in
-a Teradata database.  The connector supports the {ref}`globally available
-<sql-globally-available>` and {ref}`read operation <sql-read-operations>`
-statements.
+The connector provides read and limited write access to data and metadata in
+a Teradata database.  In addition to the [globally available](sql-globally-available) and
+[read operation](sql-read-operations) statements, the connector supports the
+following features:
+
+- [](/sql/create-schema),
+- [](/sql/drop-schema),
+- [](/sql/create-table),
+- [](/sql/drop-table)

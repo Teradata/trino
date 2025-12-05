@@ -19,7 +19,7 @@ import java.util.Map;
 import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 
-public class DatabaseConfigFactory
+public final class DatabaseConfigFactory
 {
     private DatabaseConfigFactory() {}
 
@@ -30,7 +30,7 @@ public class DatabaseConfigFactory
         String hostName = null;
 
         if (isEnvSet("CLEARSCAPE_TOKEN")) {
-            userName = TeradataTestConstants.ENV_CLEARSCAPE_USERNAME;
+            userName = TeradataTestConstants.CLEARSCAPE_USERNAME;
             password = requireEnv("CLEARSCAPE_PASSWORD");
         }
         else {
@@ -42,22 +42,18 @@ public class DatabaseConfigFactory
         String databaseName = envName.replace("-", "_");
 
         AuthenticationConfig authConfig = createAuthConfig(userName, password);
+        Map<String, String> jdbcProperties = new HashMap<>();
+        jdbcProperties.put("TMODE", "ANSI");
+        jdbcProperties.put("CHARSET", "UTF8");
+
         return DatabaseConfig.builder()
                 .hostName(hostName)
                 .databaseName(databaseName)
                 .useClearScape(hostName == null)
                 .authConfig(authConfig)
                 .clearScapeEnvName(envName)
-                .jdbcProperties(getJdbcProperties())
+                .jdbcProperties(jdbcProperties)
                 .build();
-    }
-
-    public static Map<String, String> getJdbcProperties()
-    {
-        Map<String, String> propsMap = new HashMap<>();
-        propsMap.put("TMODE", "ANSI");
-        propsMap.put("CHARSET", "UTF8");
-        return propsMap;
     }
 
     private static AuthenticationConfig createAuthConfig(String username, String password)

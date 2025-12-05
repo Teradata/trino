@@ -31,6 +31,8 @@ import java.util.Random;
 
 import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
+import static java.lang.String.format;
+import static java.util.Objects.requireNonNull;
 
 public final class TestingTeradataServer
         implements AutoCloseable, SqlExecutor
@@ -46,6 +48,7 @@ public final class TestingTeradataServer
 
     public TestingTeradataServer(String envName, boolean destroyEnv)
     {
+        requireNonNull(envName, "envName should not be null");
         config = DatabaseConfigFactory.create(envName);
         String hostName = config.getHostName();
 
@@ -73,36 +76,7 @@ public final class TestingTeradataServer
         createTestDatabaseIfAbsent();
     }
 
-    private static Properties buildConnectionProperties(AuthenticationConfig auth)
-    {
-        Properties props = new Properties();
-        props.setProperty("logmech", "TD2");
-        props.setProperty("username", auth.userName());
-        props.setProperty("password", auth.password());
-        return props;
-    }
-
-    private static long computeBackoffDelay(int attempt)
-    {
-        // Calculates how long to wait before retrying an operation that failed
-        long base = BASE_RETRY_DELAY_MS * (1L << Math.max(0, attempt - 1));
-        long jitter = (long) (RANDOM.nextDouble() * BASE_RETRY_DELAY_MS);
-        long delay = Math.min(base + jitter, MAX_RETRY_DELAY_MS);
-        return Math.max(delay, BASE_RETRY_DELAY_MS);
-    }
-
-    private static void sleepUnchecked(long millis)
-    {
-        try {
-            Thread.sleep(millis);
-        }
-        catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
-            throw new RuntimeException("Interrupted during retry wait", ie);
-        }
-    }
-
-    public Map<String, String> getCatalogProperties()
+    public Map<String, String> fetchCatalogProperties()
     {
         Map<String, String> properties = new HashMap<>();
         properties.put("connection-url", config.getJdbcUrl());
@@ -118,7 +92,7 @@ public final class TestingTeradataServer
     {
         executeWithRetry(() -> {
             if (!schemaExists(config.getDatabaseName())) {
-                execute(String.format("CREATE DATABASE \"%s\" AS PERM=100e6;", config.getDatabaseName()));
+                execute(format("CREATE DATABASE \"%s\" AS PERM=100e6;", config.getDatabaseName()));
             }
         });
     }
@@ -127,8 +101,8 @@ public final class TestingTeradataServer
     {
         executeWithRetry(() -> {
             if (schemaExists(config.getDatabaseName())) {
-                execute(String.format("DELETE DATABASE \"%s\"", config.getDatabaseName()));
-                execute(String.format("DROP DATABASE \"%s\"", config.getDatabaseName()));
+                execute(format("DELETE DATABASE \"%s\"", config.getDatabaseName()));
+                execute(format("DROP DATABASE \"%s\"", config.getDatabaseName()));
             }
         });
     }
@@ -219,7 +193,7 @@ public final class TestingTeradataServer
 
     private String buildJdbcUrl(String hostName)
     {
-        String baseUrl = String.format("jdbc:teradata://%s/", hostName);
+        String baseUrl = format("jdbc:teradata://%s/", hostName);
         String propertiesString = buildPropertiesString();
         return propertiesString.isEmpty() ? baseUrl : baseUrl + propertiesString;
     }
@@ -236,59 +210,17 @@ public final class TestingTeradataServer
                 .collect(java.util.stream.Collectors.joining(","));
     }
 
-    private Connection createConnection()
-    {
-        try {
-            Class.forName("com.teradata.jdbc.TeraDriver");
-            Properties props = buildConnectionProperties(config.getAuthConfig());
-            return DriverManager.getConnection(config.getJdbcUrl(), props);
-        }
-        catch (SQLException | ClassNotFoundException e) {
-            throw new RuntimeException("Failed to create database connection", e);
-        }
-    }
-
-    private Connection createConnectionWithRetries()
-    {
-        int attempt = 0;
-        while (true) {
-            try {
-                return createConnection();
-            }
-            catch (RuntimeException e) {
-                attempt++;
-                if (attempt >= MAX_RETRIES) {
-                    throw new RuntimeException("Failed to create database connection after retries", e);
-                }
-                long delay = computeBackoffDelay(attempt);
-                sleepUnchecked(delay);
-            }
-        }
-    }
-
     private void doExecute(String sql)
     {
         ensureConnection();
         try (Statement stmt = connection.createStatement()) {
             if (config.getDatabaseName() != null && schemaExists(config.getDatabaseName())) {
-                stmt.execute(String.format("DATABASE \"%s\"", config.getDatabaseName()));
+                stmt.execute(format("DATABASE \"%s\"", config.getDatabaseName()));
             }
             stmt.execute(sql);
         }
         catch (SQLException e) {
             throw new RuntimeException("SQL execution failed: " + sql, e);
-        }
-    }
-
-    private synchronized void ensureConnection()
-    {
-        try {
-            if (connection == null || connection.isClosed()) {
-                connection = createConnectionWithRetries();
-            }
-        }
-        catch (SQLException e) {
-            connection = createConnectionWithRetries();
         }
     }
 
@@ -316,6 +248,79 @@ public final class TestingTeradataServer
                 }
             }
             throw new RuntimeException("Failed to check schema existence", e);
+        }
+    }
+
+    private synchronized void ensureConnection()
+    {
+        try {
+            if (connection == null || connection.isClosed()) {
+                connection = createConnectionWithRetries();
+            }
+        }
+        catch (SQLException e) {
+            connection = createConnectionWithRetries();
+        }
+    }
+
+    private void executeWithRetry(Runnable operation)
+    {
+        int attempt = 0;
+
+        while (true) {
+            try {
+                operation.run();
+                return;
+            }
+            catch (RuntimeException e) {
+                attempt++;
+                Throwable cause = e.getCause();
+
+                // Connection-related: recreate connection and retry
+                if (cause instanceof SQLException sqlEx && isConnectionException(sqlEx) && attempt < MAX_RETRIES) {
+                    connection = createConnectionWithRetries();
+                    sleepUnchecked(computeBackoffDelay(attempt));
+                    continue;
+                }
+
+                // Teradata transient concurrency error 3598: backoff & retry
+                if (isTeradataError3598(e) && attempt < MAX_RETRIES) {
+                    long delay = computeBackoffDelay(attempt);
+                    sleepUnchecked(delay);
+                    continue;
+                }
+                throw e;
+            }
+        }
+    }
+
+    private Connection createConnectionWithRetries()
+    {
+        int attempt = 0;
+        while (true) {
+            try {
+                return createConnection();
+            }
+            catch (RuntimeException e) {
+                attempt++;
+                if (attempt >= MAX_RETRIES) {
+                    throw new RuntimeException("Failed to create database connection after retries", e);
+                }
+                long delay = computeBackoffDelay(attempt);
+                sleepUnchecked(delay);
+            }
+        }
+    }
+
+    private Connection createConnection()
+    {
+        try {
+            Class.forName("com.teradata.jdbc.TeraDriver");
+            Properties props = buildConnectionProperties(config.getAuthConfig());
+            return DriverManager.getConnection(config.getJdbcUrl(), props);
+        }
+        catch (SQLException | ClassNotFoundException e) {
+            throw new RuntimeException("Failed to create database connection", e);
         }
     }
 
@@ -363,34 +368,32 @@ public final class TestingTeradataServer
         return false;
     }
 
-    private void executeWithRetry(Runnable operation)
+    private static Properties buildConnectionProperties(AuthenticationConfig auth)
     {
-        int attempt = 0;
+        Properties props = new Properties();
+        props.setProperty("logmech", "TD2");
+        props.setProperty("username", auth.userName());
+        props.setProperty("password", auth.password());
+        return props;
+    }
 
-        while (true) {
-            try {
-                operation.run();
-                return;
-            }
-            catch (RuntimeException e) {
-                attempt++;
-                Throwable cause = e.getCause();
+    private static long computeBackoffDelay(int attempt)
+    {
+        // Calculates how long to wait before retrying an operation that failed
+        long base = BASE_RETRY_DELAY_MS * (1L << Math.max(0, attempt - 1));
+        long jitter = (long) (RANDOM.nextDouble() * BASE_RETRY_DELAY_MS);
+        long delay = Math.min(base + jitter, MAX_RETRY_DELAY_MS);
+        return Math.max(delay, BASE_RETRY_DELAY_MS);
+    }
 
-                // Connection-related: recreate connection and retry
-                if (cause instanceof SQLException sqlEx && isConnectionException(sqlEx) && attempt < MAX_RETRIES) {
-                    connection = createConnectionWithRetries();
-                    sleepUnchecked(computeBackoffDelay(attempt));
-                    continue;
-                }
-
-                // Teradata transient concurrency error 3598: backoff & retry
-                if (isTeradataError3598(e) && attempt < MAX_RETRIES) {
-                    long delay = computeBackoffDelay(attempt);
-                    sleepUnchecked(delay);
-                    continue;
-                }
-                throw e;
-            }
+    private static void sleepUnchecked(long millis)
+    {
+        try {
+            Thread.sleep(millis);
+        }
+        catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted during retry wait", ie);
         }
     }
 }
