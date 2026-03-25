@@ -216,6 +216,11 @@ public @interface TestGroup
     @Tag("snowflake")
     @interface Snowflake {}
 
+    @Target({TYPE, METHOD})
+    @Retention(RUNTIME)
+    @Tag("teradata")
+    @interface Teradata {}
+
     // NoSQL Connectors
     @Target({TYPE, METHOD})
     @Retention(RUNTIME)
