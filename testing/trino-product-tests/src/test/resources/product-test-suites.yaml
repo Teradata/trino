@@ -52,6 +52,7 @@ suites:
   SuiteTpcds: [hive]
   SuiteExasol: [exasol]
   SuiteSnowflake: [snowflake]
+  SuiteTeradata: [teradata]
   SuiteCassandra: [cassandra]
   SuiteClickhouse: [clickhouse]
   SuiteBlackHole: [blackhole]
@@ -103,3 +104,5 @@ secret-suites:
 disabled-suites:
   # TODO https://github.com/trinodb/trino/pull/26519 Re-enable once the connector supports key-pair authentication
   - SuiteSnowflake
+  # Requires an externally provisioned Teradata system, credentials are not available in CI
+  - SuiteTeradata
