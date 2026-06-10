@@ -1,0 +1,129 @@
+name: Sync upstream master
+
+on:
+  schedule:
+    - cron: '30 13 * * *'  # Runs daily at 1:30 PM UTC (7 PM IST - end of India work day)
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+concurrency:
+  group: sync-public-to-private-master
+  cancel-in-progress: true
+
+env:
+  PUBLIC_REPO_GIT: "https://github.com/Teradata/trino.git"
+  BRANCH: master
+  RUN_ID: ${{ github.run_id }}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Prepare workspace
+        run: rm -rf repo || true
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: repo
+
+      - name: Configure git
+        run: |
+          cd repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Fetch public upstream
+        run: |
+          cd repo
+          git remote add public "${PUBLIC_REPO_GIT}"
+          git fetch public "${BRANCH}"
+
+      - name: Determine sync status
+        id: check
+        run: |
+          cd repo
+          PRIVATE_SHA=$(git rev-parse HEAD)
+          PUBLIC_SHA=$(git rev-parse public/${BRANCH})
+          echo "private_sha=${PRIVATE_SHA}" >> $GITHUB_OUTPUT
+          echo "public_sha=${PUBLIC_SHA}"   >> $GITHUB_OUTPUT
+
+          if [ "${PRIVATE_SHA}" = "${PUBLIC_SHA}" ]; then
+            echo "Already up to date — nothing to do"
+            echo "status=noop" >> $GITHUB_OUTPUT
+          elif git merge-base --is-ancestor "${PRIVATE_SHA}" "${PUBLIC_SHA}"; then
+            echo "Private is behind public — fast-forward possible"
+            echo "status=fast-forward" >> $GITHUB_OUTPUT
+          else
+            echo "Divergence detected — rebase needed"
+            echo "status=rebase" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fast-forward
+        if: steps.check.outputs.status == 'fast-forward'
+        id: fast_forward
+        run: |
+          cd repo
+          git merge --ff-only public/${BRANCH}
+          git push origin ${BRANCH}
+          echo "mode=fast-forward" >> $GITHUB_OUTPUT
+
+      - name: Rebase
+        if: steps.check.outputs.status == 'rebase'
+        id: rebase
+        run: |
+          cd repo
+          PRIVATE_SHA="${{ steps.check.outputs.private_sha }}"
+          BACKUP_REF="backup/${BRANCH}-before-sync-${RUN_ID}"
+
+          echo "Creating backup branch ${BACKUP_REF} at ${PRIVATE_SHA}"
+          git push origin "${PRIVATE_SHA}:refs/heads/${BACKUP_REF}"
+
+          echo "Rebasing private/${BRANCH} onto public/${BRANCH}"
+          if git rebase -Xours public/${BRANCH}; then
+            git push --force-with-lease origin ${BRANCH}
+            echo "mode=rebased" >> $GITHUB_OUTPUT
+          else
+            git rebase --abort
+            echo "mode=rebase-failed" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create issue on rebase failure
+        if: steps.rebase.outputs.mode == 'rebase-failed'
+        run: |
+          BACKUP_REF="backup/${BRANCH}-before-sync-${RUN_ID}"
+          PRIVATE_SHA="${{ steps.check.outputs.private_sha }}"
+          ISSUE_TITLE="SYNC FAILED: rebase conflict on private/${BRANCH}"
+          ISSUE_BODY="Automatic sync run (${RUN_ID}) could not rebase private/${BRANCH} onto public/${BRANCH} due to conflicts.\n\nBackup branch: **${BACKUP_REF}** (SHA: ${PRIVATE_SHA})\n\nTo resolve manually:\n1. Fetch both remotes\n2. Run: git rebase public/${BRANCH}\n3. Resolve conflicts\n4. Run: git push --force-with-lease origin ${BRANCH}\n\nWorkflow logs: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          curl -s -S -X POST \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "${{ github.api_url }}/repos/${{ github.repository }}/issues" \
+            -d "$(jq -n --arg t "$ISSUE_TITLE" --arg b "$ISSUE_BODY" '{title:$t, body:$b, labels:["sync","automation"]}')"
+
+      - name: Cleanup
+        if: always()
+        run: rm -rf repo || true
+
+      - name: Trigger ci-teradata tests on success
+        if: |
+          success() &&
+          (steps.fast_forward.outputs.mode == 'fast-forward' || steps.rebase.outputs.mode == 'rebased')
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci-teradata.yml',
+              ref: 'ci-workflows'
+            });
+            console.log('Triggered ci-teradata.yml on ci-workflows branch');
+
+      - name: Summary
+        run: |
+          echo "Status : ${{ steps.check.outputs.status }}"
+          echo "Mode   : ${{ steps.fast_forward.outputs.mode || steps.rebase.outputs.mode || 'noop' }}"
+          echo "Public : ${{ steps.check.outputs.public_sha }}"
+          echo "Private: ${{ steps.check.outputs.private_sha }}"
