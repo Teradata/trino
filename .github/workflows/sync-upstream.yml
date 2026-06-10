@@ -61,6 +61,10 @@ jobs:
             echo "status=rebase" >> $GITHUB_OUTPUT
           fi
 
+      - name: Skip if already up to date
+        if: steps.check.outputs.status == 'noop'
+        run: echo "✅ Master is already in sync with trinodb/trino. Nothing to do."
+
       - name: Fast-forward
         if: steps.check.outputs.status == 'fast-forward'
         id: fast_forward
