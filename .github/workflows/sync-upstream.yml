@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PUBLIC_REPO_GIT: "https://github.com/Teradata/trino.git"
+  PUBLIC_REPO_GIT: "https://github.com/trinodb/trino.git"
   BRANCH: master
   RUN_ID: ${{ github.run_id }}
 
