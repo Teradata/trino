@@ -1,0 +1,376 @@
+name: ci-teradata
+
+on:
+  push:
+    branches:
+      - master
+      - 'teradata-*'
+  pull_request:
+  repository_dispatch:
+    types: [test-with-secrets-command]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: 'Branch name to checkout and run tests on (e.g. master, teradata-connector, feature/my-branch)'
+        required: false
+        default: ''
+      run_long_tests:
+        description: 'Run long-running and data-mapping tests (true/false)'
+        required: false
+        default: 'false'
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+env:
+  # An envar that signals to tests we are executing in the CI environment
+  CONTINUOUS_INTEGRATION: true
+  # allow overriding Maven command
+  MAVEN: ./mvnw
+  MAVEN_OPTS: "-Xmx512M -XX:+ExitOnOutOfMemoryError"
+  MAVEN_INSTALL_OPTS: "-Xmx3G -XX:+ExitOnOutOfMemoryError"
+  MAVEN_FAST_INSTALL: "-B -V -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all"
+  MAVEN_COMPILE_COMMITS: "-B --quiet -T 1C -DskipTests -Dmaven.source.skip=true -Dair.check.skip-all=true -Dmaven.javadoc.skip=true --no-snapshot-updates --no-transfer-progress"
+  MAVEN_GIB: "-P gib -Dgib.referenceBranch=refs/remotes/origin/${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch }}"
+  MAVEN_TEST: "-B -Dmaven.source.skip=true -Dair.check.skip-all --fail-at-end -P gib -Dgib.referenceBranch=refs/remotes/origin/${{ github.event_name == 'pull_request' && github.event.pull_request.base.ref || github.event.repository.default_branch }}"
+  TESTCONTAINERS_PULL_PAUSE_TIMEOUT: 600
+  # used by actions/cache to retry the download after this time: https://github.com/actions/cache/blob/main/workarounds.md#cache-segment-restore-timeout
+  SEGMENT_DOWNLOAD_TIMEOUT_MINS: 5
+  CI_SKIP_SECRETS_PRESENCE_CHECKS: ${{ secrets.CI_SKIP_SECRETS_PRESENCE_CHECKS }}
+  SECRETS_PRESENT: ${{ secrets.SECRETS_PRESENT }}
+  PTL_TMP_DOWNLOAD_PATH: /tmp/pt_java_downloads
+  DEFAULT_CHECKOUT_REF: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.target_branch || github.event_name == 'repository_dispatch' && github.event.client_payload.pull_request.head.sha == github.event.client_payload.slash_command.args.named.sha && format('refs/pull/{0}/head', github.event.client_payload.pull_request.number) || '' }}
+
+# Cancel previous PR builds.
+concurrency:
+  # Cancel all workflow runs except latest within a concurrency group. This is achieved by defining a concurrency group for the PR.
+  # Non-PR builds have singleton concurrency groups.
+  # When triggered by the repository_dispatch, add the expected SHA to avoid cancelling the run from the PR.
+  group: |
+    workflow=${{ github.workflow }},
+    pr_number=${{ github.event_name == 'pull_request' && github.event.number || 'NA' }},
+    dispatch_sha=${{ github.event_name == 'repository_dispatch' && github.event.client_payload.slash_command.args.named.sha || 'NA' }},
+    commit_sha=${{ github.event_name != 'pull_request' && github.event_name != 'repository_dispatch' && github.sha || 'NA' }}
+  cancel-in-progress: true
+
+jobs:
+  path-filters:
+    runs-on: ubuntu-latest
+    outputs:
+      docs: ${{ steps.filter.outputs.docs }}
+      non_docs: ${{ steps.filter.outputs.non_docs }}
+    steps:
+      - uses: dorny/paths-filter@fbd0ab8f3e69293af611ebaee6363fc25e6d187d # v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          # Note: `docs` output is currently unused. The docs changes are tested by maven-checks job, leveraging GIB impact analysis.
+          # TODO remove use of non_docs filters and remove `path-filters` job. Use GIB impact analysis to guard job skipping.
+          filters: |
+            docs: 'docs/**'
+            non_docs: '!docs/**'
+
+  maven-checks:
+    runs-on: ubuntu-latest
+    name: maven-checks ${{ matrix.java-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { java-version: 25.0.2, cache: 'true', cleanup-node: true }
+          - { java-version: 26-ea, cache: 'restore', cleanup-node: true }
+          - { java-version: 27-ea, cache: 'restore', cleanup-node: true }
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # checkout all commits, as the build result depends on `git describe` equivalent
+          ref: ${{ env.DEFAULT_CHECKOUT_REF }}
+      - uses: ./.github/actions/setup
+        timeout-minutes: 15
+        with:
+          cache: ${{ matrix.cache }}
+          java-version: ${{ matrix.java-version }}
+          cleanup-node: true
+      - name: Check SPI backward compatibility
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} -pl :trino-spi -am
+          $MAVEN clean verify -B --strict-checksums -DskipTests -pl :trino-spi
+      - name: Maven Checks
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean verify -B --strict-checksums -V -T 1C -DskipTests -P ci
+      - name: Remove Trino from local Maven repo to avoid caching it
+        # Avoid caching artifacts built in this job, cache should only include dependencies
+        if: steps.cache.outputs.cache-hit != 'true' && matrix.cache == 'true'
+        run: rm -rf ~/.m2/repository/io/trino/trino-*
+
+  check-commits-dispatcher:
+    needs: path-filters
+    if: github.event_name == 'pull_request' && needs.path-filters.outputs.non_docs == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base
+      - name: Block illegal commits
+        uses: trinodb/github-actions/block-commits@c2991972560c5219d9ae5fb68c0c9d687ffcdd10
+        with:
+          action-merge: fail
+          action-fixup: none
+      - name: Set matrix (dispatch commit checks)
+        id: set-matrix
+        run: |
+          # Make sure the PR branch contains the compile-commit composite job
+          if git merge-base --is-ancestor $( git rev-list HEAD -- .github/actions/compile-commit/action.yml | tail -n 1 ) ${{ github.event.pull_request.head.sha }}
+          then
+            # The HEAD commit of the PR can be safely ignored since it's already compiled in other jobs
+            # This is achieved by adding a tilde (~) after the HEAD sha
+            git log --reverse --pretty=format:'%H,%T,"%s"' refs/remotes/origin/${{ github.event.pull_request.base.ref }}..${{ github.event.pull_request.head.sha }}~ | ./.github/bin/prepare-check-commits-matrix.py > commit-matrix.json
+          else
+            echo -n '' > commit-matrix.json
+          fi
+
+          echo "Commit matrix: $(jq '.' commit-matrix.json)"
+          echo "matrix=$(jq -c '.' commit-matrix.json)" >> $GITHUB_OUTPUT
+
+  check-commit:
+    needs: check-commits-dispatcher
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event_name == 'pull_request' && needs.check-commits-dispatcher.outputs.matrix != ''
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.check-commits-dispatcher.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+        if: matrix.commit != ''
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base
+          ref: ${{ matrix.commit }}
+      # This composite job must be entirely standalone, and checked out from the correct commit before being executed.
+      # It can't accept any parameters defined in this workflow, because the values of those parameters would always be taken from
+      # PR HEAD since that is the commit the workflow is started for. This could lead to problems if those parameters were changed
+      # in the middle of a PR branch.
+      - uses: ./.github/actions/compile-commit
+        if: matrix.commit != ''
+        with:
+          base_ref: ${{ github.event.pull_request.base.ref }}
+
+  error-prone-checks:
+    needs: path-filters
+    if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
+          ref: ${{ env.DEFAULT_CHECKOUT_REF }}
+      - uses: ./.github/actions/setup
+        timeout-minutes: 15
+        with:
+          cache: restore
+          cleanup-node: true # fix "No space left on device" error
+          java-version: 25.0.2
+      - name: Maven Install
+        run: |
+          # build everything to make sure dependencies of impacted modules are present
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -pl '!:trino-docs,!:trino-server'
+      - name: Error Prone Checks
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          # Skip checks, these are run in `maven-checks` job and e.g. checkstyle is expensive.
+          $MAVEN ${MAVEN_TEST} -T 1C clean compile test-compile -DskipTests -Dair.check.skip-all=true ${MAVEN_GIB} -Dgib.buildUpstream=never -P errorprone-compiler \
+            -pl '!:trino-docs,!:trino-server'
+
+  build-test-matrix:
+    needs: path-filters
+    if: github.event_name != 'pull_request' || needs.path-filters.outputs.non_docs == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
+          ref: ${{ env.DEFAULT_CHECKOUT_REF }}
+      - uses: ./.github/actions/setup
+        timeout-minutes: 15
+        with:
+          cache: restore
+      - name: Update PR check
+        uses: ./.github/actions/update-check
+        if: >-
+          github.event_name == 'repository_dispatch' &&
+          github.event.client_payload.slash_command.args.named.sha != '' &&
+          github.event.client_payload.pull_request.head.sha == github.event.client_payload.slash_command.args.named.sha
+        with:
+          pull_request_number: ${{ github.event.client_payload.pull_request.number }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Maven validate
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN validate ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -Dgib.logImpactedTo=gib-impacted.log -P disable-check-spi-dependencies
+      - name: Set matrix
+        id: set-matrix
+        run: |
+          # GIB doesn't run on master, so make sure the file always exist
+          touch gib-impacted.log
+          cat <<EOF > .github/test-matrix.yaml
+          include:
+            - { modules: plugin/trino-teradata }
+            - { modules: plugin/trino-teradata, profile: clearscape-tests }
+            - { modules: plugin/trino-teradata, profile: run-only-long-tests }
+            - { modules: plugin/trino-teradata, profile: data-mapping }
+          EOF
+          ./.github/bin/build-matrix-from-impacted.py -v -i gib-impacted.log -m .github/test-matrix.yaml -o matrix.json
+          echo "Matrix: $(jq '.' matrix.json)"
+          echo "matrix=$(jq -c '.' matrix.json)" >> $GITHUB_OUTPUT
+
+  test:
+    runs-on: 'ubuntu-latest'
+    needs: build-test-matrix
+    if: needs.build-test-matrix.outputs.matrix != '{}'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.build-test-matrix.outputs.matrix) }}
+    # clearscape-tests: ~60 min, run-only-long-tests/data-mapping: up to 120 min
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0 # checkout all commits to be able to determine merge base for GIB
+          ref: ${{ env.DEFAULT_CHECKOUT_REF }}
+      - uses: ./.github/actions/setup
+        timeout-minutes: 15
+        with:
+          cache: restore
+          java-version: ${{ matrix.jdk != '' && matrix.jdk || '25.0.2' }}
+      - name: Maven Install
+        run: |
+          export MAVEN_OPTS="${MAVEN_INSTALL_OPTS}"
+          $MAVEN clean install ${MAVEN_FAST_INSTALL} ${MAVEN_GIB} -am -pl "${{ matrix.modules }}"
+      - name: Maven Tests
+        id: tests
+        # Skip tests that require ClearScape secrets; they run in dedicated steps below
+        if: >-
+          ! (contains(matrix.modules, 'trino-teradata') && contains(matrix.profile, 'clearscape-tests'))
+          && ! (contains(matrix.modules, 'trino-teradata') && contains(matrix.profile, 'run-only-long-tests'))
+          && ! (contains(matrix.modules, 'trino-teradata') && contains(matrix.profile, 'data-mapping'))
+        run: $MAVEN test ${MAVEN_TEST} -pl ${{ matrix.modules }} ${{ matrix.profile != '' && format('-P {0}', matrix.profile) || '' }}
+      - name: Teradata ClearScape Tests
+        id: tests-teradata-clearscape
+        env:
+          CLEARSCAPE_TOKEN: ${{ secrets.CLEARSCAPE_TOKEN }}
+          CLEARSCAPE_PASSWORD: ${{ secrets.CLEARSCAPE_PASSWORD }}
+          CLEARSCAPE_REGION: ${{ vars.CLEARSCAPE_REGION }}
+        if: >-
+          matrix.modules == 'plugin/trino-teradata' && contains(matrix.profile, 'clearscape-tests') &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || (env.CLEARSCAPE_TOKEN != '' && env.CLEARSCAPE_PASSWORD != '' && env.CLEARSCAPE_REGION != ''))
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-teradata -P clearscape-tests
+      - name: Teradata Long Running Tests
+        id: tests-teradata-long-run
+        env:
+          CLEARSCAPE_TOKEN: ${{ secrets.CLEARSCAPE_TOKEN }}
+          CLEARSCAPE_PASSWORD: ${{ secrets.CLEARSCAPE_PASSWORD }}
+          CLEARSCAPE_REGION: ${{ vars.CLEARSCAPE_REGION }}
+          TERADATA_LONG_TESTS: ${{ vars.TERADATA_LONG_TESTS }}
+        if: >-
+          matrix.modules == 'plugin/trino-teradata' && contains(matrix.profile, 'run-only-long-tests') &&
+          env.TERADATA_LONG_TESTS != '' &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || (env.CLEARSCAPE_TOKEN != '' && env.CLEARSCAPE_PASSWORD != '' && env.CLEARSCAPE_REGION != ''))
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-teradata -P run-only-long-tests
+      - name: Teradata Data Mapping Tests
+        id: tests-teradata-data-mapping
+        env:
+          CLEARSCAPE_TOKEN: ${{ secrets.CLEARSCAPE_TOKEN }}
+          CLEARSCAPE_PASSWORD: ${{ secrets.CLEARSCAPE_PASSWORD }}
+          CLEARSCAPE_REGION: ${{ vars.CLEARSCAPE_REGION }}
+          TERADATA_LONG_TESTS: ${{ vars.TERADATA_LONG_TESTS }}
+        if: >-
+          matrix.modules == 'plugin/trino-teradata' && contains(matrix.profile, 'data-mapping') &&
+          env.TERADATA_LONG_TESTS != '' &&
+          (env.CI_SKIP_SECRETS_PRESENCE_CHECKS != '' || (env.CLEARSCAPE_TOKEN != '' && env.CLEARSCAPE_PASSWORD != '' && env.CLEARSCAPE_REGION != ''))
+        run: |
+          $MAVEN test ${MAVEN_TEST} -pl :trino-teradata -P data-mapping
+      - name: Sanitize artifact name
+        if: always()
+        run: |
+          # Generate a valid artifact name and make it available to next steps as
+          # an environment variable ARTIFACT_NAME
+          # ", :, <, >, |, *, ?, \, / are not allowed in artifact names, replace it with an underscore
+          name=$(echo -n "${{ matrix.modules }}, ${{ matrix.profile }}, ${{ matrix.jdk }}" | sed -e 's/[":<>|\*\?\\\/]/_/g')
+          # final artifact name can't be longer than 128 characters
+          echo "ARTIFACT_NAME=${name:0:100}" >> $GITHUB_ENV
+      - name: Upload test results
+        uses: ./.github/actions/process-test-results
+        if: always()
+        with:
+          artifact-name: ${{ env.ARTIFACT_NAME }}
+          has-failed-tests: >-
+            ${{ steps.tests.outcome == 'failure'
+              || steps.tests-teradata-clearscape.outcome == 'failure'
+              || steps.tests-teradata-long-run.outcome == 'failure'
+              || steps.tests-teradata-data-mapping.outcome == 'failure'
+            }}
+          upload-heap-dump: ${{ env.SECRETS_PRESENT == '' && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+      - name: Update PR check
+        uses: ./.github/actions/update-check
+        if: >-
+          failure() &&
+          github.event_name == 'repository_dispatch' &&
+          github.event.client_payload.slash_command.args.named.sha != '' &&
+          github.event.client_payload.pull_request.head.sha == github.event.client_payload.slash_command.args.named.sha
+        with:
+          pull_request_number: ${{ github.event.client_payload.pull_request.number }}
+          check_name: ${{ github.job }} with secrets
+          conclusion: ${{ job.status }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+  build-success:
+    if: ${{ always() }} # if `failure()` would not work for cancellations, `!success()` would not work for skipped jobs
+    runs-on: ubuntu-latest
+    needs:
+      - build-test-matrix
+      - check-commit
+      - check-commits-dispatcher
+      - error-prone-checks
+      - maven-checks
+      - path-filters
+      - test
+    steps:
+      - name: "Check results"
+        run: |
+          echo '${{ needs.build-test-matrix.result }}' | grep -xE 'success|skipped' || { echo 'Job "build-test-matrix" failed' >&2; exit 1; }
+          echo '${{ needs.check-commit.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commit" failed' >&2; exit 1; }
+          echo '${{ needs.check-commits-dispatcher.result }}' | grep -xE 'success|skipped' || { echo 'Job "check-commits-dispatcher" failed' >&2; exit 1; }
+          echo '${{ needs.error-prone-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "error-prone-checks" failed' >&2; exit 1; }
+          echo '${{ needs.maven-checks.result }}' | grep -xE 'success|skipped' || { echo 'Job "maven-checks" failed' >&2; exit 1; }
+          echo '${{ needs.path-filters.result }}' | grep -xE 'success|skipped' || { echo 'Job "path-filters" failed' >&2; exit 1; }
+          echo '${{ needs.test.result }}' | grep -xE 'success|skipped' || { echo 'Job "test" failed' >&2; exit 1; }
+
+  trigger-private-repo-sync:
+    if: success() && github.ref == 'refs/heads/master' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: build-success
+    steps:
+      - name: Trigger Teradata-PE/devtools-trino sync
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.TERADATA_PE_SYNC_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: 'Teradata-PE',
+              repo: 'devtools-trino',
+              workflow_id: 'ci-teradata-pull-master-branch-daily-from-public.yml',
+              ref: 'master'
+            });
+            console.log('Triggered Teradata-PE/devtools-trino sync workflow');
