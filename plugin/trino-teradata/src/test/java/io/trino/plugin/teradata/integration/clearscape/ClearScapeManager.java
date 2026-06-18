@@ -19,17 +19,32 @@ import io.trino.plugin.teradata.integration.TeradataTestConstants;
 import java.net.URISyntaxException;
 import java.util.regex.Pattern;
 
-import static java.util.Objects.requireNonNull;
-
 public class ClearScapeManager
 {
     private static final Logger log = Logger.get(ClearScapeManager.class);
-    private static final Pattern ALLOWED_URL_PATTERN = Pattern.compile("^(https?://)(www\\.)?api.clearscape.teradata\\.com.*");
-    private final Model model;
+    private static final Pattern ALLOWED_URL_PATTERN =
+            Pattern.compile("^(https?://)(www\\.)?api.clearscape.teradata\\.com.*");
+    private Model model;
 
-    public ClearScapeManager(Model model)
+    private boolean isValidUrl(String url)
     {
-        requireNonNull(model, "model is null");
+        return ALLOWED_URL_PATTERN.matcher(url).matches();
+    }
+
+    private TeradataHttpClient getTeradataHttpClient()
+            throws URISyntaxException
+    {
+        String envUrl = TeradataTestConstants.ENV_CLEARSCAPE_URL;
+        if (isValidUrl(envUrl)) {
+            return new TeradataHttpClient(envUrl);
+        }
+        else {
+            throw new URISyntaxException(envUrl, "Provide valid environment URL");
+        }
+    }
+
+    public void init(Model model)
+    {
         this.model = model;
     }
 
@@ -43,39 +58,9 @@ public class ClearScapeManager
         stopClearScapeInstance();
     }
 
-    public EnvironmentResponse.State status()
-    {
-        return getClearScapeInstanceStatus();
-    }
-
     public void teardown()
     {
         shutdownAndDestroyClearScapeInstance();
-    }
-
-    private EnvironmentResponse.State getClearScapeInstanceStatus()
-    {
-        try {
-            TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
-
-            String token = model.getToken();
-            String name = model.getEnvName();
-            EnvironmentResponse response;
-            try {
-                response = teradataHttpClient.fetchEnvironment(new GetEnvironmentRequest(name), token);
-            }
-            catch (ClearScapeServiceException be) {
-                return EnvironmentResponse.State.TERMINATED;
-            }
-
-            if (response != null) {
-                return response.state();
-            }
-            return EnvironmentResponse.State.TERMINATED;
-        }
-        catch (Exception e) {
-            throw new RuntimeException("Failed to get status of ClearScape instance", e);
-        }
     }
 
     private void createAndStartClearScapeInstance()
@@ -83,13 +68,13 @@ public class ClearScapeManager
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
 
-            String token = model.getToken();
-            String name = model.getEnvName();
+            String token = this.model.getToken();
+            String name = this.model.getEnvName();
             EnvironmentResponse response = null;
             try {
-                response = teradataHttpClient.fetchEnvironment(new GetEnvironmentRequest(name), token);
+                response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
             }
-            catch (ClearScapeServiceException be) {
+            catch (BaseException be) {
                 log.info("Environment %s is not available. %s", name, be.getMessage());
             }
 
@@ -117,14 +102,14 @@ public class ClearScapeManager
     {
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
-            String token = model.getToken();
-            String name = model.getEnvName();
+            String token = this.model.getToken();
+            String name = this.model.getEnvName();
 
             EnvironmentResponse response = null;
             try {
-                response = teradataHttpClient.fetchEnvironment(new GetEnvironmentRequest(name), token);
+                response = teradataHttpClient.getEnvironment(new GetEnvironmentRequest(name), token);
             }
-            catch (ClearScapeServiceException be) {
+            catch (BaseException be) {
                 log.info("Environment %s is not available. %s", name, be.getMessage());
             }
             if (response != null &&
@@ -143,11 +128,11 @@ public class ClearScapeManager
     {
         try {
             TeradataHttpClient teradataHttpClient = getTeradataHttpClient();
-            String token = model.getToken();
-            DeleteEnvironmentRequest request = new DeleteEnvironmentRequest(model.getEnvName());
+            String token = this.model.getToken();
+            DeleteEnvironmentRequest request = new DeleteEnvironmentRequest(this.model.getEnvName());
             teradataHttpClient.deleteEnvironment(request, token).get();
         }
-        catch (ClearScapeServiceException be) {
+        catch (BaseException be) {
             log.info("Environment %s is not available. Error - %s",
                     model.getEnvName(),
                     be.getMessage());
@@ -155,20 +140,5 @@ public class ClearScapeManager
         catch (Exception e) {
             throw new RuntimeException("Failed to shutdown and destroy ClearScape instance", e);
         }
-    }
-
-    private TeradataHttpClient getTeradataHttpClient()
-            throws URISyntaxException
-    {
-        String envUrl = TeradataTestConstants.CLEARSCAPE_URL;
-        if (isValidUrl(envUrl)) {
-            return new TeradataHttpClient(envUrl);
-        }
-        throw new URISyntaxException(envUrl, "Provide valid environment URL");
-    }
-
-    private static boolean isValidUrl(String url)
-    {
-        return ALLOWED_URL_PATTERN.matcher(url).matches();
     }
 }

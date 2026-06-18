@@ -19,22 +19,19 @@ import static java.util.Locale.ENGLISH;
 
 public final class ClearScapeEnvironmentUtils
 {
-    private static final int MAX_ENV_NAME_LENGTH = 20;
+    private static final int MAX_ENV_NAME_LENGTH = 40; // Adjust based on ClearScape limits
 
     private ClearScapeEnvironmentUtils() {}
 
     public static String generateUniqueEnvName(Class<?> testClass)
     {
-        String prefix = testClass.getSimpleName().toLowerCase(ENGLISH);
+        String className = testClass.getSimpleName().toLowerCase(ENGLISH);
         String suffix = Long.toString(ThreadLocalRandom.current().nextLong(Long.MAX_VALUE), 36);
-        int suffixLength = 6;
-        if (suffix.length() > suffixLength) {
-            suffix = suffix.substring(0, suffixLength);
+        String envName = className + "-" + suffix;
+        // Truncate if too long
+        if (envName.length() > MAX_ENV_NAME_LENGTH) {
+            envName = envName.substring(0, MAX_ENV_NAME_LENGTH);
         }
-        int prefixLength = MAX_ENV_NAME_LENGTH - suffixLength - 1;
-        if (prefix.length() > prefixLength) {
-            prefix = prefix.substring(0, prefixLength);
-        }
-        return prefix + "-" + suffix;
+        return envName;
     }
 }
