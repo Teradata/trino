@@ -33,18 +33,23 @@ public class ClearScapeSetup
             boolean destroyEnv,
             String region)
     {
-        this.token = requireNonNull(token, "token is null");
-        this.password = requireNonNull(password, "password is null");
-        this.envName = requireNonNull(envName, "envName is null");
-        this.region = requireNonNull(region, "region is null");
+        requireNonNull(token, "token is null");
+        requireNonNull(password, "password is null");
+        requireNonNull(envName, "envName is null");
+        requireNonNull(region, "region is null");
+        this.token = token;
+        this.password = password;
+        this.envName = envName;
+        this.region = region;
         this.destroyEnv = destroyEnv;
     }
 
     public Model initialize()
     {
         try {
+            manager = new ClearScapeManager();
             Model model = createModel();
-            manager = new ClearScapeManager(model);
+            manager.init(model);
             manager.setup();
             return model;
         }
@@ -55,14 +60,14 @@ public class ClearScapeSetup
 
     private Model createModel()
     {
-        return new Model(
-                envName,
-                null,
-                TeradataTestConstants.CLEARSCAPE_USERNAME,
-                password,
-                TeradataTestConstants.CLEARSCAPE_USERNAME,
-                token,
-                region);
+        Model model = new Model();
+        model.setEnvName(envName);
+        model.setUserName(TeradataTestConstants.ENV_CLEARSCAPE_USERNAME);
+        model.setPassword(password);
+        model.setDatabaseName(TeradataTestConstants.ENV_CLEARSCAPE_USERNAME);
+        model.setToken(token);
+        model.setRegion(region);
+        return model;
     }
 
     public void cleanup()
@@ -75,13 +80,5 @@ public class ClearScapeSetup
             return;
         }
         manager.stop();
-    }
-
-    public EnvironmentResponse.State status()
-    {
-        if (manager == null) {
-            throw new IllegalStateException("ClearScape manager is not initialized");
-        }
-        return manager.status();
     }
 }
