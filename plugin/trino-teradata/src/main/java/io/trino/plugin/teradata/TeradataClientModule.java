@@ -17,6 +17,7 @@ import com.google.inject.Binder;
 import com.google.inject.Provides;
 import com.google.inject.Scopes;
 import com.google.inject.Singleton;
+import com.google.inject.multibindings.OptionalBinder;
 import io.airlift.configuration.AbstractConfigurationAwareModule;
 import io.opentelemetry.api.OpenTelemetry;
 import io.trino.plugin.jdbc.BaseJdbcConfig;
@@ -24,32 +25,83 @@ import io.trino.plugin.jdbc.ConnectionFactory;
 import io.trino.plugin.jdbc.DriverConnectionFactory;
 import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.JdbcClient;
+import io.trino.plugin.jdbc.JdbcJoinPushdownSupportModule;
+import io.trino.plugin.jdbc.JdbcMetadataFactory;
+import io.trino.plugin.jdbc.JdbcStatisticsConfig;
 import io.trino.plugin.jdbc.credential.CredentialProvider;
+import io.trino.plugin.jdbc.ptf.Query;
+import io.trino.spi.function.table.ConnectorTableFunction;
 
 import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Properties;
 
+import static com.google.inject.multibindings.Multibinder.newSetBinder;
 import static io.airlift.configuration.ConfigBinder.configBinder;
 
 public class TeradataClientModule
         extends AbstractConfigurationAwareModule
 {
-    @Override
-    public void setup(Binder binder)
-    {
-        binder.bind(JdbcClient.class).annotatedWith(ForBaseJdbc.class).to(TeradataClient.class).in(Scopes.SINGLETON);
-        configBinder(binder).bindConfig(TeradataConfig.class);
-    }
-
     @Provides
     @Singleton
     @ForBaseJdbc
-    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, CredentialProvider credentialProvider, OpenTelemetry openTelemetry)
+    public static ConnectionFactory getConnectionFactory(BaseJdbcConfig config, TeradataConfig teradataConfig, CredentialProvider credentialProvider, OpenTelemetry openTelemetry)
             throws SQLException
     {
+        Properties connectionProperties = new Properties();
         Driver driver = DriverManager.getDriver(config.getConnectionUrl());
-        return DriverConnectionFactory.builder(driver, config.getConnectionUrl(), credentialProvider)
-                .setOpenTelemetry(openTelemetry).build();
+        String longMech = LogonMechanism.fromString(teradataConfig.getLogMech()).getMechanism();
+        connectionProperties.put("LOGMECH", longMech);
+        switch (longMech) {
+            case "TD2" -> {}
+            case "BEARER" -> {
+                String clientId = teradataConfig.getOidcClientId();
+                if (clientId != null && !clientId.isEmpty()) {
+                    connectionProperties.put("oidc_clientid", clientId);
+                }
+                String privateKey = teradataConfig.getOidcJWSPrivateKey();
+                if (privateKey != null && !privateKey.isEmpty()) {
+                    connectionProperties.put("jws_private_key", privateKey);
+                }
+                String certificate = teradataConfig.getOidcJWSCertificate();
+                if (certificate != null && !certificate.isEmpty()) {
+                    connectionProperties.put("jws_cert", certificate);
+                }
+            }
+            case "JWT" -> {
+                String token = teradataConfig.getOidcJwtToken();
+                if (token != null && !token.trim().isEmpty()) {
+                    token = "token=" + token;
+                    connectionProperties.put("LOGDATA", token);
+                }
+            }
+            case "SECRET" -> {
+                String clientId = teradataConfig.getOidcClientId();
+                if (clientId != null && !clientId.isEmpty()) {
+                    connectionProperties.put("oidc_clientid", clientId);
+                }
+                String clientSecret = teradataConfig.getOidcClientSecret();
+                if (clientSecret != null && !clientSecret.isEmpty()) {
+                    connectionProperties.put("LOGDATA", clientSecret);
+                }
+            }
+            default -> throw new IllegalArgumentException("Unsupported logon mechanism: " + longMech);
+        }
+        return DriverConnectionFactory.builder(driver, config.getConnectionUrl(), credentialProvider).setConnectionProperties(connectionProperties).setOpenTelemetry(openTelemetry).build();
+    }
+
+    @Override
+    public void setup(Binder binder)
+    {
+        configBinder(binder).bindConfig(TeradataConfig.class);
+        binder.bind(JdbcClient.class).annotatedWith(ForBaseJdbc.class).to(TeradataClient.class).in(Scopes.SINGLETON);
+        configBinder(binder).bindConfig(JdbcStatisticsConfig.class);
+        install(new JdbcJoinPushdownSupportModule());
+        newSetBinder(binder, ConnectorTableFunction.class).addBinding().toProvider(Query.class).in(Scopes.SINGLETON);
+        OptionalBinder.newOptionalBinder(binder, JdbcMetadataFactory.class)
+                .setBinding()
+                .to(TeradataMetadataFactory.class)
+                .in(Scopes.SINGLETON);
     }
 }
