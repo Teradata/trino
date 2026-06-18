@@ -13,14 +13,18 @@
  */
 package io.trino.plugin.teradata.integration;
 
+import io.trino.plugin.teradata.LogonMechanism;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import static io.trino.testing.SystemEnvironmentUtils.isEnvSet;
 import static io.trino.testing.SystemEnvironmentUtils.requireEnv;
 
-public final class DatabaseConfigFactory
+public class DatabaseConfigFactory
 {
+    private static final String DEFAULT_LOG_MECH = "TD2";
+
     private DatabaseConfigFactory() {}
 
     public static DatabaseConfig create(String envName)
@@ -30,7 +34,7 @@ public final class DatabaseConfigFactory
         String hostName = null;
 
         if (isEnvSet("CLEARSCAPE_TOKEN")) {
-            userName = TeradataTestConstants.CLEARSCAPE_USERNAME;
+            userName = TeradataTestConstants.ENV_CLEARSCAPE_USERNAME;
             password = requireEnv("CLEARSCAPE_PASSWORD");
         }
         else {
@@ -38,26 +42,39 @@ public final class DatabaseConfigFactory
             password = requireEnv("TERADATA_PASSWORD");
             hostName = requireEnv("TERADATA_HOSTNAME");
         }
-
+        String logMechStr = DEFAULT_LOG_MECH;
+        if (isEnvSet("TERADATA_LOGMECH")) {
+            logMechStr = requireEnv("TERADATA_LOGMECH");
+        }
+        LogonMechanism logMech = LogonMechanism.fromString(logMechStr);
         String databaseName = envName.replace("-", "_");
-
-        AuthenticationConfig authConfig = createAuthConfig(userName, password);
-        Map<String, String> jdbcProperties = new HashMap<>();
-        jdbcProperties.put("TMODE", "ANSI");
-        jdbcProperties.put("CHARSET", "UTF8");
-
+        AuthConfig authConfig = createAuthConfig(userName, password, logMech);
         return DatabaseConfig.builder()
                 .hostName(hostName)
                 .databaseName(databaseName)
                 .useClearScape(hostName == null)
+                .logMech(logMech)
                 .authConfig(authConfig)
                 .clearScapeEnvName(envName)
-                .jdbcProperties(jdbcProperties)
+                .jdbcProperties(getJdbcProperties())
                 .build();
     }
 
-    private static AuthenticationConfig createAuthConfig(String username, String password)
+    public static Map<String, String> getJdbcProperties()
     {
-        return new AuthenticationConfig(username, password);
+        Map<String, String> propsMap = new HashMap<>();
+        propsMap.put("TMODE", "ANSI");
+        propsMap.put("CHARSET", "UTF16");
+        return propsMap;
+    }
+
+    private static AuthConfig createAuthConfig(String username, String password, LogonMechanism logMech)
+    {
+        return switch (logMech) {
+            case TD2 -> new TD2Auth(username, password);
+            case BEARER -> new BearerAuth(requireEnv("TERADATA_JWS_PRIVATE_KEY"), requireEnv("TERADATA_JWS_CERT"), requireEnv("TERADATA_OIDC_CLIENTID"));
+            case JWT -> new JWTAuth(requireEnv("TERADATA_JWT_TOKEN"));
+            case SECRET -> new SecretAuth(requireEnv("TERADATA_OIDC_CLIENTID"), requireEnv("TERADATA_CLIENT_SECRET"));
+        };
     }
 }
