@@ -13,9 +13,9 @@
  */
 package io.trino.plugin.teradata.integration;
 
-import java.util.Map;
+import io.trino.plugin.teradata.LogonMechanism;
 
-import static java.util.Objects.requireNonNull;
+import java.util.Map;
 
 public class DatabaseConfig
 {
@@ -23,19 +23,21 @@ public class DatabaseConfig
     private final String hostName;
     private final String databaseName;
     private final boolean useClearScape;
-    private final AuthenticationConfig authConfig;
+    private final LogonMechanism logMech;
     private final String clearScapeEnvName;
     private final Map<String, String> jdbcProperties;
+    private final AuthConfig authConfig;
 
     private DatabaseConfig(Builder builder)
     {
-        jdbcUrl = builder.jdbcUrl;
-        hostName = builder.hostName;
-        useClearScape = builder.useClearScape;
-        databaseName = requireNonNull(builder.databaseName, "databaseName is null");
-        authConfig = requireNonNull(builder.authConfig, "authConfig is null");
-        clearScapeEnvName = requireNonNull(builder.clearScapeEnvName, "clearScapeEnvName isnull");
-        jdbcProperties = requireNonNull(builder.jdbcProperties, "jdbcProperties is null");
+        this.jdbcUrl = builder.jdbcUrl;
+        this.hostName = builder.hostName;
+        this.databaseName = builder.databaseName;
+        this.useClearScape = builder.useClearScape;
+        this.logMech = builder.logMech;
+        this.authConfig = builder.authConfig;
+        this.clearScapeEnvName = builder.clearScapeEnvName;
+        this.jdbcProperties = builder.jdbcProperties;
     }
 
     public static Builder builder()
@@ -46,13 +48,14 @@ public class DatabaseConfig
     public Builder toBuilder()
     {
         return builder()
-                .jdbcUrl(jdbcUrl)
-                .hostName(hostName)
-                .databaseName(databaseName)
-                .useClearScape(useClearScape)
-                .authConfig(authConfig)
-                .clearScapeEnvName(clearScapeEnvName)
-                .jdbcProperties(jdbcProperties);
+                .jdbcUrl(this.jdbcUrl)
+                .hostName(this.hostName)
+                .databaseName(this.databaseName)
+                .useClearScape(this.useClearScape)
+                .logMech(this.logMech)
+                .authConfig(this.authConfig)
+                .clearScapeEnvName(this.clearScapeEnvName)
+                .jdbcProperties(this.jdbcProperties);
     }
 
     public String getJdbcUrl()
@@ -70,7 +73,12 @@ public class DatabaseConfig
         return useClearScape;
     }
 
-    public AuthenticationConfig getAuthConfig()
+    public LogonMechanism getLogMech()
+    {
+        return logMech;
+    }
+
+    public AuthConfig getAuthConfig()
     {
         return authConfig;
     }
@@ -104,7 +112,8 @@ public class DatabaseConfig
         private String hostName;
         private String databaseName = "trino";
         private boolean useClearScape;
-        private AuthenticationConfig authConfig = new AuthenticationConfig();
+        private LogonMechanism logMech = LogonMechanism.TD2;
+        private AuthConfig authConfig;
         private String clearScapeEnvName;
         private Map<String, String> jdbcProperties;
 
@@ -126,7 +135,13 @@ public class DatabaseConfig
             return this;
         }
 
-        public Builder authConfig(AuthenticationConfig authConfig)
+        public Builder logMech(LogonMechanism logMech)
+        {
+            this.logMech = logMech;
+            return this;
+        }
+
+        public Builder authConfig(AuthConfig authConfig)
         {
             this.authConfig = authConfig;
             return this;
