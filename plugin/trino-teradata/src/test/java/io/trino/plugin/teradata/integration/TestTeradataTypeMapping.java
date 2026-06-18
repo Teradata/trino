@@ -32,10 +32,14 @@ import static io.trino.spi.type.DecimalType.createDecimalType;
 import static io.trino.spi.type.DoubleType.DOUBLE;
 import static io.trino.spi.type.IntegerType.INTEGER;
 import static io.trino.spi.type.SmallintType.SMALLINT;
+import static io.trino.spi.type.TimeType.createTimeType;
+import static io.trino.spi.type.TimeWithTimeZoneType.createTimeWithTimeZoneType;
+import static io.trino.spi.type.TimestampType.createTimestampType;
 import static io.trino.spi.type.TinyintType.TINYINT;
+import static io.trino.spi.type.VarbinaryType.VARBINARY;
 import static io.trino.spi.type.VarcharType.createVarcharType;
 import static io.trino.testing.datatype.SqlDataTypeTest.create;
-import static java.lang.String.format;
+import static io.trino.type.JsonType.JSON;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 
 @ResourceLock(value = "TERADATA_SCHEMA", mode = ResourceAccessMode.READ_WRITE)
@@ -44,11 +48,22 @@ final class TestTeradataTypeMapping
 {
     private TestingTeradataServer database;
 
+    static String padBinaryString(String prefix, int length)
+    {
+        // simple function to help with byte test cases
+        StringBuilder result = new StringBuilder(prefix);
+        while (result.length() < length * 2) {
+            result.append("0");
+        }
+        return "X'" + result + "'";
+    }
+
     @Override
     protected QueryRunner createQueryRunner()
             throws Exception
     {
         database = closeAfterClass(new TestingTeradataServer(generateUniqueEnvName(getClass()), true));
+        // Register this specific instance for this test class
         return TeradataQueryRunner.builder(database).build();
     }
 
@@ -66,7 +81,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("byteint", "127", TINYINT, "CAST(127 AS TINYINT)")
                 .addRoundTrip("byteint", "-128", TINYINT, "CAST(-128 AS TINYINT)")
                 .addRoundTrip("byteint", "null", TINYINT, "CAST(null AS TINYINT)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("byteint"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("byteint"));
     }
 
     @Test
@@ -77,7 +92,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("smallint", "32767", SMALLINT, "CAST(32767 AS SMALLINT)")
                 .addRoundTrip("smallint", "-32768", SMALLINT, "CAST(-32768 AS SMALLINT)")
                 .addRoundTrip("smallint", "null", SMALLINT, "CAST(null AS SMALLINT)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("smallint"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("smallint"));
     }
 
     @Test
@@ -88,7 +103,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("integer", "2147483647", INTEGER, "2147483647")
                 .addRoundTrip("integer", "-2147483648", INTEGER, "-2147483648")
                 .addRoundTrip("integer", "NULL", INTEGER, "CAST(NULL AS INTEGER)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("integer"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("integer"));
     }
 
     @Test
@@ -99,7 +114,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("bigint", "9223372036854775807", BIGINT, "9223372036854775807")
                 .addRoundTrip("bigint", "-9223372036854775808", BIGINT, "-9223372036854775808")
                 .addRoundTrip("bigint", "NULL", BIGINT, "CAST(NULL AS BIGINT)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("bigint"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bigint"));
     }
 
     @Test
@@ -118,7 +133,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("float", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
                 .addRoundTrip("real", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
                 .addRoundTrip("double precision", "NULL", DOUBLE, "CAST(NULL AS DOUBLE)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("float"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("float"));
     }
 
     @Test
@@ -152,7 +167,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("decimal(38, 0)", "-12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('-12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("numeric(38, 0)", "-12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('-12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("decimal(1, 0)", "null", createDecimalType(1, 0), "CAST(null AS decimal(1, 0))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("decimal"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("decimal"));
     }
 
     @Test
@@ -165,7 +180,7 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("number(38,2)", "123456789012345678901234567890123456.78", createDecimalType(38, 2), "CAST('123456789012345678901234567890123456.78' AS decimal(38, 2))")
                 .addRoundTrip("numeric(38)", "12345678901234567890123456789012345678", createDecimalType(38, 0), "CAST('12345678901234567890123456789012345678' AS decimal(38, 0))")
                 .addRoundTrip("numeric(3)", "null", createDecimalType(3, 0), "CAST(null AS decimal(3, 0))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("number"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("number"));
     }
 
     @Test
@@ -185,20 +200,20 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("char(3)", "'A C'", createCharType(3), "CAST('A C' AS char(3))")
                 .addRoundTrip("char(3)", "' BC'", createCharType(3), "CAST(' BC' AS char(3))")
                 .addRoundTrip("char(3)", "null", createCharType(3), "CAST(null AS char(3))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("char"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("char"));
         String tmode = database.getTMode();
         if (tmode.equals("TERA")) {
             // truncation
             create()
                     .addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
-                    .execute(getQueryRunner(), testInsertIntoNotNullColumn("chart"));
+                    .execute(getQueryRunner(), teradataJDBCCreateAndInsert("chart"));
         }
         else {
             // Error on truncation
             assertThatThrownBy(() ->
                     create()
                             .addRoundTrip("char(3)", "'ABCD'", createCharType(3), "CAST('ABCD' AS char(3))")
-                            .execute(getQueryRunner(), testInsertIntoNotNullColumn("chart")))
+                            .execute(getQueryRunner(), teradataJDBCCreateAndInsert("chart")))
                     .isInstanceOf(RuntimeException.class)
                     .hasCauseInstanceOf(SQLException.class)
                     .cause()
@@ -207,7 +222,7 @@ final class TestTeradataTypeMapping
         // max-size
         create()
                 .addRoundTrip("char(64000)", "'max'", createCharType(64000), "CAST('max' AS char(64000))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("charl"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("charl"));
     }
 
     @Test
@@ -228,20 +243,20 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("varchar(32)", "'A C'", createVarcharType(32), "CAST('A C' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "' BC'", createVarcharType(32), "CAST(' BC' AS varchar(32))")
                 .addRoundTrip("varchar(32)", "null", createVarcharType(32), "CAST(null AS varchar(32))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("varchar"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchar"));
         String teraMode = database.getTMode();
         if (teraMode.equals("TERA")) {
             // truncation
             create()
                     .addRoundTrip("varchar(3)", "'ABCD'", createVarcharType(3), "CAST('ABCD' AS varchar(3))")
-                    .execute(getQueryRunner(), testInsertIntoNotNullColumn("varchart"));
+                    .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchart"));
         }
         else {
             // Error on truncation
             assertThatThrownBy(() ->
                     create()
                             .addRoundTrip("varchar(3)", "'ABCD'", createVarcharType(3), "CAST('ABCD' AS varchar(3))")
-                            .execute(getQueryRunner(), testInsertIntoNotNullColumn("varchart")))
+                            .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varchart")))
                     .isInstanceOf(RuntimeException.class)
                     .hasCauseInstanceOf(SQLException.class)
                     .cause()
@@ -250,7 +265,71 @@ final class TestTeradataTypeMapping
         // max-size
         create()
                 .addRoundTrip("long varchar", "'max'", createVarcharType(64000), "CAST('max' AS varchar(64000))")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("varcharl"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varcharl"));
+    }
+
+    @Test
+    void testByte()
+    {
+        create()
+                .addRoundTrip("byte(3)", "'000000'XB", VARBINARY, "X'000000'")
+                .addRoundTrip("byte(3)", "'012345'XB", VARBINARY, "X'012345'")
+                .addRoundTrip("byte(3)", "'FEDCBA'XB", VARBINARY, "X'FEDCBA'")
+                .addRoundTrip("byte(3)", "'AA'XB", VARBINARY, padBinaryString("AA", 3))
+                .addRoundTrip("byte(3)", "'00AA'XB", VARBINARY, padBinaryString("00AA", 3))
+                .addRoundTrip("byte(3)", "'AA00'XB", VARBINARY, padBinaryString("AA00", 3))
+                .addRoundTrip("byte(3)", "null", VARBINARY, "CAST(null AS varbinary)")
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("byte"));
+        String tmode = database.getTMode();
+        if (tmode.equals("TERA")) {
+            // truncation
+            create()
+                    .addRoundTrip("byte(3)", "'01234567'XB", VARBINARY, "X'012345'")
+                    .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bytet"));
+        }
+        else {
+            // Error on truncation
+            assertThatThrownBy(() ->
+                    create().addRoundTrip("byte(3)", "'01234567'XB", VARBINARY, "X'012345'")
+                            .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bytet")))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasCauseInstanceOf(SQLException.class)
+                    .cause()
+                    .hasMessageContaining("Right truncation of string data");
+        }
+        // max-size
+        create().addRoundTrip("byte(64000)", "'FF'XB", VARBINARY, padBinaryString("FF", 64000))
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("bytel"));
+    }
+
+    @Test
+    void testVarbyte()
+    {
+        create()
+                .addRoundTrip("varbyte(32)", "'000000'XB", VARBINARY, "X'000000'")
+                .addRoundTrip("varbyte(32)", "'012345'XB", VARBINARY, "X'012345'")
+                .addRoundTrip("varbyte(32)", "'FEDCBA'XB", VARBINARY, "X'FEDCBA'")
+                .addRoundTrip("varbyte(32)", "'AA'XB", VARBINARY, "X'AA'")
+                .addRoundTrip("varbyte(32)", "'00AA'XB", VARBINARY, "X'00AA'")
+                .addRoundTrip("varbyte(32)", "'AA00'XB", VARBINARY, "X'AA00'")
+                .addRoundTrip("varbyte(32)", "null", VARBINARY, "CAST(null AS varbinary)")
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbyte"));
+        String tmode = database.getTMode();
+        if (tmode.equals("TERA")) {
+            // truncation
+            create().addRoundTrip("varbyte(3)", "'01234567'XB", VARBINARY, "X'012345'").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbytet"));
+        }
+        else {
+            // Error on truncation
+            assertThatThrownBy(() ->
+                    create().addRoundTrip("varbyte(3)", "'01234567'XB", VARBINARY, "X'012345'").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbytet")))
+                    .isInstanceOf(RuntimeException.class)
+                    .hasCauseInstanceOf(SQLException.class)
+                    .cause()
+                    .hasMessageContaining("Right truncation of string data");
+        }
+        // max-size
+        create().addRoundTrip("varbyte(64000)", "'FF'XB", VARBINARY, "X'FF'").execute(getQueryRunner(), teradataJDBCCreateAndInsert("varbytel"));
     }
 
     @Test
@@ -273,12 +352,66 @@ final class TestTeradataTypeMapping
                 .addRoundTrip("date", "DATE '2024-02-29'", DATE, "DATE '2024-02-29'")
                 .addRoundTrip("date", "DATE '9999-12-30'", DATE, "DATE '9999-12-30'")
                 .addRoundTrip("date", "NULL", DATE, "CAST(NULL AS DATE)")
-                .execute(getQueryRunner(), testInsertIntoNotNullColumn("date"));
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("date"));
     }
 
-    private DataSetup testInsertIntoNotNullColumn(String tableNamePrefix)
+    @Test
+    void testTime()
     {
-        String prefix = format("%s.%s", database.getDatabaseName(), tableNamePrefix);
+        create().addRoundTrip("time", "time '00:00:00'", createTimeType(6), "CAST('00:00:00' AS TIME(6))")
+                .addRoundTrip("time(0)", "time '00:00:00'", createTimeType(0), "CAST('00:00:00' AS TIME(0))")
+                .addRoundTrip("time(2)", "time '00:00:00.00'", createTimeType(2), "CAST('00:00:00.00' AS TIME(2))")
+                .addRoundTrip("time(3)", "time '00:00:00.000'", createTimeType(3), "TIME '00:00:00.000'")
+                .addRoundTrip("time(6)", "time '00:00:00.000000'", createTimeType(6), "CAST('00:00:00.000000' AS TIME(6))")
+                .addRoundTrip("time", "time '23:59:59'", createTimeType(6), "CAST('23:59:59' AS TIME(6))")
+                .addRoundTrip("time(0)", "time '23:59:59'", createTimeType(0), "CAST('23:59:59' AS TIME(0))")
+                .addRoundTrip("time(2)", "time '23:59:59.99'", createTimeType(2), "CAST('23:59:59.99' AS TIME(2))")
+                .addRoundTrip("time(3)", "time '23:59:59.999'", createTimeType(3), "TIME '23:59:59.999'")
+                .addRoundTrip("time(6)", "time '23:59:59.999999'", createTimeType(6), "CAST('23:59:59.999999' AS TIME(6))").execute(
+                        getQueryRunner(),
+                        teradataJDBCCreateAndInsert("time"));
+    }
+
+    @Test
+    void testTimeWithTimeZone()
+    {
+        create()
+                .addRoundTrip("time(0) with time zone", "time '00:00:00-00:00'", createTimeWithTimeZoneType(0), "CAST('00:00:00-00:00' AS TIME(0) WITH TIME ZONE)")
+                .addRoundTrip("time(0) with time zone", "time '23:59:59-00:00'", createTimeWithTimeZoneType(0), "CAST('23:59:59-00:00' AS TIME(0) WITH TIME ZONE)")
+                .addRoundTrip("time(3) with time zone", "time '01:23:45.678-08:00'", createTimeWithTimeZoneType(3), "CAST('01:23:45.678-08:00' AS TIME WITH TIME ZONE)")
+                .addRoundTrip("time(6) with time zone", "time '00:00:00.000000-00:00'", createTimeWithTimeZoneType(6), "CAST('00:00:00.000000-00:00' AS TIME(6) WITH TIME ZONE)")
+                .addRoundTrip("time(6) with time zone", "time '23:59:59.999999-00:00'", createTimeWithTimeZoneType(6), "CAST('23:59:59.999999-00:00' AS TIME(6) WITH TIME ZONE)")
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("time_tz1"));
+    }
+
+    @Test
+    void testTimestamp()
+    {
+        create()
+                .addRoundTrip("timestamp", "timestamp '0001-01-01 00:00:00'", createTimestampType(6), "CAST('0001-01-01 00:00:00' AS TIMESTAMP(6))")
+                .addRoundTrip("timestamp", "timestamp '0001-01-01 23:59:59.999999'", createTimestampType(6), "CAST('0001-01-01 23:59:59.999999' AS TIMESTAMP(6))")
+                .addRoundTrip("timestamp(2)", "timestamp '0001-01-01 23:59:59.99'", createTimestampType(2), "CAST('0001-01-01 23:59:59.99' AS TIMESTAMP(2))")
+                .addRoundTrip("timestamp(3)", "timestamp '0001-01-01 23:59:59.999'", createTimestampType(3), "TIMESTAMP '0001-01-01 23:59:59.999'")
+                .addRoundTrip("timestamp", "timestamp '9999-12-30 23:59:59'", createTimestampType(6), "CAST('9999-12-30 23:59:59' AS TIMESTAMP(6))")
+                .addRoundTrip("timestamp", "timestamp '9999-12-30 23:59:59.999999'", createTimestampType(6), "CAST('9999-12-30 23:59:59.999999' AS TIMESTAMP(6))")
+                .addRoundTrip("timestamp(2)", "timestamp '9999-12-30 23:59:59.99'", createTimestampType(2), "CAST('9999-12-30 23:59:59.99' AS TIMESTAMP(2))")
+                .addRoundTrip("timestamp(3)", "timestamp '9999-12-30 23:59:59.999'", createTimestampType(3), "TIMESTAMP '9999-12-30 23:59:59.999'")
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("timestamp"));
+    }
+
+    @Test
+    void testJson()
+    {
+        create()
+                .addRoundTrip("byteint", "0", TINYINT, "CAST(0 AS TINYINT)")
+                .addRoundTrip("JSON", "'{\"name\": \"Alice\", \"age\": 30}'", JSON, "JSON '{\"name\": \"Alice\", \"age\": 30}'")
+                .addRoundTrip("JSON", "NULL", JSON, "CAST(NULL AS JSON)")
+                .execute(getQueryRunner(), teradataJDBCCreateAndInsert("json"));
+    }
+
+    private DataSetup teradataJDBCCreateAndInsert(String tableNamePrefix)
+    {
+        String prefix = String.format("%s.%s", database.getDatabaseName(), tableNamePrefix);
         return new CreateAndInsertDataSetup(database, prefix);
     }
 }
