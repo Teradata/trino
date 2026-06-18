@@ -13,12 +13,6 @@
  */
 package io.trino.plugin.teradata.integration.clearscape;
 
-import static java.util.Objects.requireNonNull;
-
-public record DeleteEnvironmentRequest(String name)
-{
-    public DeleteEnvironmentRequest
-    {
-        requireNonNull(name, "name should not be null");
-    }
-}
+public record DeleteEnvironmentRequest(
+        String name
+) {}
