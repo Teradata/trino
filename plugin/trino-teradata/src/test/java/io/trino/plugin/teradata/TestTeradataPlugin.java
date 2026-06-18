@@ -16,6 +16,7 @@ package io.trino.plugin.teradata;
 import io.trino.plugin.jdbc.JdbcConnectorFactory;
 import io.trino.spi.connector.ConnectorFactory;
 import io.trino.testing.TestingConnectorContext;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -23,13 +24,14 @@ import java.util.Map;
 import static com.google.common.collect.Iterables.getOnlyElement;
 import static org.assertj.core.api.Assertions.assertThat;
 
-final class TestTeradataPlugin
+public class TestTeradataPlugin
 {
     @Test
-    void testCreateConnector()
+    public void testCreateConnector()
     {
         TeradataPlugin plugin = new TeradataPlugin();
         ConnectorFactory factory = getOnlyElement(plugin.getConnectorFactories());
+        Assertions.assertNotNull(factory);
         assertThat(factory).isInstanceOf(JdbcConnectorFactory.class);
         factory.create(
                         "test",
