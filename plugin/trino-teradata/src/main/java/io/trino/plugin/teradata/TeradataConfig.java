@@ -15,24 +15,123 @@ package io.trino.plugin.teradata;
 
 import io.airlift.configuration.Config;
 import io.airlift.configuration.ConfigDescription;
-import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public class TeradataConfig
 {
-    // Default to 60MB if not specified by user
-    private long permanentSpace = 60000000;
+    private String oidcJWTToken;
+    private String oidcClientSecret;
+    private String oidcJWSCertificate;
+    private String oidcJWSPrivateKey;
+    private String oidcClientId;
+    private String logMech = "TD2";
+    private TeradataCaseSensitivity teradataCaseSensitivity = TeradataCaseSensitivity.CASE_SENSITIVE;
+    private String viewMetadataSchema = "trino_metadata";
 
-    @Min(1)
-    public long getPermanentSpace()
+    public String getOidcClientId()
     {
-        return permanentSpace;
+        return oidcClientId;
     }
 
-    @Config("teradata.permanent-space")
-    @ConfigDescription("Permanent space allocation in bytes for new databases")
-    public TeradataConfig setPermanentSpace(long permanentSpace)
+    @Config("oidc.client-id")
+    public TeradataConfig setOidcClientId(String clientId)
     {
-        this.permanentSpace = permanentSpace;
+        this.oidcClientId = clientId;
         return this;
+    }
+
+    public String getOidcJWSPrivateKey()
+    {
+        return oidcJWSPrivateKey;
+    }
+
+    @Config("oidc.jws-private-key")
+    public TeradataConfig setOidcJWSPrivateKey(String privateKey)
+    {
+        this.oidcJWSPrivateKey = privateKey;
+        return this;
+    }
+
+    public String getOidcJWSCertificate()
+    {
+        return oidcJWSCertificate;
+    }
+
+    @Config("oidc.jws-certificate")
+    public TeradataConfig setOidcJWSCertificate(String certificate)
+    {
+        this.oidcJWSCertificate = certificate;
+        return this;
+    }
+
+    public String getOidcClientSecret()
+    {
+        return oidcClientSecret;
+    }
+
+    @Config("oidc.client-secret")
+    public TeradataConfig setOidcClientSecret(String clientSecret)
+    {
+        this.oidcClientSecret = clientSecret;
+        return this;
+    }
+
+    public String getOidcJwtToken()
+    {
+        return oidcJWTToken;
+    }
+
+    @Config("jwt.token")
+    public TeradataConfig setOidcJwtToken(String jwtToken)
+    {
+        this.oidcJWTToken = jwtToken;
+        return this;
+    }
+
+    public String getLogMech()
+    {
+        return logMech;
+    }
+
+    @Config("logon-mechanism")
+    @ConfigDescription("Specifies the logon mechanism for Teradata (default: TD2). Use 'TD2' for TD2 authentication.")
+    public TeradataConfig setLogMech(String logMech)
+    {
+        this.logMech = logMech;
+        return this;
+    }
+
+    @NotNull
+    public TeradataCaseSensitivity getTeradataCaseSensitivity()
+    {
+        return teradataCaseSensitivity;
+    }
+
+    @Config("teradata.case-sensitivity")
+    @ConfigDescription("How char/varchar columns' case sensitivity will be exposed to Trino (default: CASE_SENSITIVE). Possible values: CASE_INSENSITIVE, CASE_SENSITIVE, AS_DEFINED.")
+    public TeradataConfig setTeradataCaseSensitivity(TeradataCaseSensitivity teradataCaseSensitivity)
+    {
+        this.teradataCaseSensitivity = teradataCaseSensitivity;
+        return this;
+    }
+
+    @NotBlank
+    public String getViewMetadataSchema()
+    {
+        return viewMetadataSchema;
+    }
+
+    @Config("teradata.view-metadata-schema")
+    @ConfigDescription("Schema name in Teradata used to store Trino view definitions (auto-created on first use)")
+    public TeradataConfig setViewMetadataSchema(String viewMetadataSchema)
+    {
+        this.viewMetadataSchema = viewMetadataSchema;
+        return this;
+    }
+
+    public enum TeradataCaseSensitivity
+    {
+        CASE_INSENSITIVE, CASE_SENSITIVE, AS_DEFINED
     }
 }
