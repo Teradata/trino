@@ -264,11 +264,173 @@ statements, the connector supports the following features:
 - [](/sql/drop-table)
 - [](/sql/drop-schema)
 - [](sql-schema-table-management)
+- [](sql-view-management), see details for [](teradata-view-management)
 - [](/sql/merge), see also [](teradata-merge)
 
 (teradata-merge)=
 
 ```{include} non-transactional-merge.fragment
+```
+
+(teradata-view-management)=
+## View management
+
+The connector fully supports Trino {ref}`view management <sql-view-management>`
+for Teradata views.
+
+(teradata-view-storage)=
+### View storage
+
+Trino views are not stored as native Teradata views. Instead, view definitions
+are stored as rows in a metadata table called `trino_views` inside a dedicated
+Teradata database. The default metadata database is `trino_metadata`, which
+Trino creates automatically on first use.
+
+You can change the metadata database using the `teradata.view-metadata-schema`
+catalog configuration property:
+
+```properties
+teradata.view-metadata-schema=my_trino_metadata
+```
+
+The Teradata user specified in `connection-user` must have privileges to create
+databases and tables in the metadata database. The `trino_views` table has the
+following structure:
+
+```
+catalog_name, schema_name, view_name, original_sql,
+view_owner, run_as_invoker, columns_data, view_comment
+```
+
+:::{note}
+Because view definitions are stored in a Trino-managed table rather than
+Teradata's native view catalog, Teradata tools such as BTEQ or Teradata Studio
+will not show these views as native database objects.
+:::
+
+(teradata-create-view)=
+### Create a view
+
+Use {doc}`/sql/create-view` to create a view. Trino maps `CREATE OR REPLACE
+VIEW` to Teradata's native `REPLACE VIEW` syntax so that existing views are
+replaced without error:
+
+```sql
+CREATE OR REPLACE VIEW example.sales.revenue_by_region AS
+SELECT
+    region,
+    sum(amount) AS total
+FROM example.sales.orders
+GROUP BY region;
+```
+
+(teradata-drop-view)=
+### Drop a view
+
+Use {doc}`/sql/drop-view`:
+
+```sql
+DROP VIEW example.sales.revenue_by_region;
+```
+
+(teradata-alter-view)=
+### Rename a view
+
+Use {doc}`/sql/alter-view` to rename a view:
+
+```sql
+ALTER VIEW example.sales.revenue_by_region RENAME TO example.sales.revenue_summary;
+```
+
+(teradata-show-create-view)=
+### Show the view definition
+
+Use {doc}`/sql/show-create-view` to display the SQL that defines a view:
+
+```sql
+SHOW CREATE VIEW example.sales.revenue_summary;
+```
+
+(teradata-comment-view)=
+### Comment on a view or view column
+
+Use the {doc}`/sql/comment` statement to set or clear comments on views and
+view columns:
+
+```sql
+-- Set a comment on the view
+COMMENT ON TABLE example.sales.revenue_summary IS 'Aggregated revenue per region';
+
+-- Set a comment on a view column
+COMMENT ON COLUMN example.sales.revenue_summary.total IS 'Sum of order amounts';
+
+-- Remove a comment
+COMMENT ON TABLE example.sales.revenue_summary IS NULL;
+```
+
+(teradata-procedures)=
+## Procedures
+
+```{include} jdbc-procedures-flush.fragment
+```
+```{include} procedures-execute.fragment
+```
+
+(teradata-table-functions)=
+## Table functions
+
+The connector provides specific {doc}`table functions </functions/table>` to
+access Teradata.
+
+(teradata-query-function)=
+### `query(varchar) -> table`
+
+The `query` function allows you to query the underlying database directly. It
+requires syntax native to Teradata, because the full query is pushed down and
+processed in Teradata. This can be useful for accessing native features which
+are not available in Trino or for improving query performance in situations
+where running a query natively may be faster.
+
+```{include} query-passthrough-warning.fragment
+```
+
+As a simple example, query the `example` catalog and select an entire table:
+
+```sql
+SELECT
+  *
+FROM
+  TABLE(
+    example.system.query(
+      query => 'SELECT
+        *
+      FROM
+        tpch.nation'
+    )
+  );
+```
+
+As a practical example, you can leverage Teradata-specific syntax such as the
+`QUALIFY` clause for window function filtering:
+
+```sql
+SELECT
+  *
+FROM
+  TABLE(
+    example.system.query(
+      query => 'SELECT
+        name,
+        salary,
+        RANK() OVER (ORDER BY salary DESC) AS rnk
+      FROM
+        mydb.employees
+      QUALIFY rnk <= 10'
+    )
+  );
+```
+
+```{include} query-table-function-ordering.fragment
 ```
 
 ## Performance
