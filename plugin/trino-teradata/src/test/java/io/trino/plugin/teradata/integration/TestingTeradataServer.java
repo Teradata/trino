@@ -38,6 +38,8 @@ public final class TestingTeradataServer
     private static final long BASE_RETRY_DELAY_MS = 1500L;
     private static final long MAX_RETRY_DELAY_MS = 10_000L;
     private static final Random RANDOM = new Random();
+    private static final int QUERY_TIMEOUT_SECONDS = 60;
+    private static final int LOGIN_TIMEOUT_SECONDS = 30;
 
     private volatile Connection connection;
     private DatabaseConfig config;
@@ -112,6 +114,9 @@ public final class TestingTeradataServer
 
         properties.put("connection-url", config.getJdbcUrl());
         properties.put("logon-mechanism", config.getLogMech().getMechanism());
+        // Store Trino-managed view metadata in the per-test database, which the test user owns,
+        // instead of the default shared "trino_metadata" schema that may be owned by another user.
+        properties.put("teradata.view-metadata-schema", config.getDatabaseName());
 
         AuthConfig auth = config.getAuthConfig();
 
@@ -159,6 +164,7 @@ public final class TestingTeradataServer
         ensureConnection();
         String query = "SELECT count(1) FROM DBC.TablesV WHERE DataBaseName = ? AND TableName = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             stmt.setString(1, config.getDatabaseName());
             stmt.setString(2, tableName);
             try (ResultSet rs = stmt.executeQuery()) {
@@ -169,6 +175,7 @@ public final class TestingTeradataServer
             if (isConnectionException(e)) {
                 connection = createConnectionWithRetries();
                 try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
                     stmt.setString(1, config.getDatabaseName());
                     stmt.setString(2, tableName);
                     try (ResultSet rs = stmt.executeQuery()) {
@@ -253,6 +260,7 @@ public final class TestingTeradataServer
     {
         try {
             Class.forName("com.teradata.jdbc.TeraDriver");
+            DriverManager.setLoginTimeout(LOGIN_TIMEOUT_SECONDS);
             Properties props = buildConnectionProperties();
             return DriverManager.getConnection(config.getJdbcUrl(), props);
         }
@@ -283,6 +291,7 @@ public final class TestingTeradataServer
     {
         ensureConnection();
         try (Statement stmt = connection.createStatement()) {
+            stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             if (config.getDatabaseName() != null && schemaExists(config.getDatabaseName())) {
                 stmt.execute(String.format("DATABASE \"%s\"", config.getDatabaseName()));
             }
@@ -310,6 +319,7 @@ public final class TestingTeradataServer
         ensureConnection();
         String query = "SELECT COUNT(1) FROM DBC.DatabasesV WHERE DatabaseName = ?";
         try (PreparedStatement stmt = connection.prepareStatement(query)) {
+            stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
             stmt.setString(1, schemaName);
             try (ResultSet rs = stmt.executeQuery()) {
                 return rs.next() && rs.getInt(1) > 0;
@@ -319,6 +329,7 @@ public final class TestingTeradataServer
             if (isConnectionException(e)) {
                 connection = createConnectionWithRetries();
                 try (PreparedStatement stmt = connection.prepareStatement(query)) {
+                    stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
                     stmt.setString(1, schemaName);
                     try (ResultSet rs = stmt.executeQuery()) {
                         return rs.next() && rs.getInt(1) > 0;
