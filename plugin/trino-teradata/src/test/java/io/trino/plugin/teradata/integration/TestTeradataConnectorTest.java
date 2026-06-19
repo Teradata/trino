@@ -31,10 +31,13 @@ import io.trino.testing.TestingConnectorBehavior;
 import io.trino.testing.assertions.TrinoExceptionAssert;
 import io.trino.testing.sql.SqlExecutor;
 import io.trino.testing.sql.TestTable;
+import io.trino.testing.sql.TestView;
 import org.assertj.core.api.AssertProvider;
 import org.intellij.lang.annotations.Language;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.parallel.ResourceAccessMode;
+import org.junit.jupiter.api.parallel.ResourceLock;
 
 import java.util.List;
 import java.util.Locale;
@@ -1222,6 +1225,15 @@ final class TestTeradataConnectorTest
     protected Optional<String> filterColumnNameTestData(String columnName)
     {
         if (columnName.endsWith(" ")) {
+            return Optional.empty();
+        }
+        // UPPERCASE is a reserved word in Teradata (Error 3707)
+        if (columnName.equals("UPPERCASE")) {
+            return Optional.empty();
+        }
+        // Apostrophe in column names causes getColumnComment() to return null
+        // because the information_schema lookup can't match the column name
+        if (columnName.contains("'")) {
             return Optional.empty();
         }
         return super.filterColumnNameTestData(columnName);
@@ -2755,5 +2767,44 @@ final class TestTeradataConnectorTest
             throws Exception
     {
         abort("Teradata table-level locking causes concurrent ADD COLUMN operations to deadlock or time out");
+    }
+
+    @Override
+    @Test
+    // Teradata requires all expressions in a derived table to have explicit names.
+    // The base test passes 'SELECT 1' which fails with Error 3706.
+    // Override to use an aliased expression instead.
+    public void testNativeQuerySimple()
+    {
+        assertQuery("SELECT * FROM TABLE(system.query(query => 'SELECT 1 AS val'))", "VALUES 1");
+    }
+
+    @Override
+    @Test
+    // Teradata returns "" instead of null when a view column comment is cleared with IS NULL.
+    public void testCommentViewColumn()
+    {
+        if (!hasBehavior(TestingConnectorBehavior.SUPPORTS_COMMENT_ON_VIEW_COLUMN)) {
+            abort("Skipping as connector does not support COMMENT ON VIEW COLUMN");
+        }
+
+        String viewColumnName = "regionkey";
+        try (TestView view = new TestView(getQueryRunner()::execute, "test_comment_view_column", "SELECT * FROM region")) {
+            // comment set
+            assertUpdate("COMMENT ON COLUMN " + view.getName() + "." + viewColumnName + " IS 'new region key comment'");
+            assertThat(getColumnComment(view.getName(), viewColumnName)).isEqualTo("new region key comment");
+
+            // Teradata returns "" instead of null when a comment is cleared
+            assertUpdate("COMMENT ON COLUMN " + view.getName() + "." + viewColumnName + " IS NULL");
+            assertThat(getColumnComment(view.getName(), viewColumnName)).isIn(null, "");
+
+            // comment set to non-empty value before verifying setting empty comment
+            assertUpdate("COMMENT ON COLUMN " + view.getName() + "." + viewColumnName + " IS 'updated region key comment'");
+            assertThat(getColumnComment(view.getName(), viewColumnName)).isEqualTo("updated region key comment");
+
+            // comment set to empty
+            assertUpdate("COMMENT ON COLUMN " + view.getName() + "." + viewColumnName + " IS ''");
+            assertThat(getColumnComment(view.getName(), viewColumnName)).isEqualTo("");
+        }
     }
 }
