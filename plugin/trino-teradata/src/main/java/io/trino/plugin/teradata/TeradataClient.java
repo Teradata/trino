@@ -101,9 +101,9 @@ import io.trino.spi.type.TimeZoneKey;
 import io.trino.spi.type.TimestampType;
 import io.trino.spi.type.TimestampWithTimeZoneType;
 import io.trino.spi.type.Type;
+import io.trino.spi.type.TypeDescriptor;
 import io.trino.spi.type.TypeId;
 import io.trino.spi.type.TypeManager;
-import io.trino.spi.type.TypeSignature;
 import io.trino.spi.type.VarcharType;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
@@ -258,7 +258,7 @@ public class TeradataClient
             CatalogName catalogName)
     {
         super("\"", connectionFactory, queryBuilder, config.getJdbcTypesMappedToVarchar(), identifierMapping, remoteQueryModifier, true);
-        this.jsonType = typeManager.getType(new TypeSignature(JSON));
+        this.jsonType = typeManager.getType(new TypeDescriptor(JSON));
         this.teradataJDBCCaseSensitivity = teradataConfig.getTeradataCaseSensitivity();
         this.statisticsEnabled = statisticsConfig.isEnabled();
         this.metadataSchema = teradataConfig.getViewMetadataSchema();
