@@ -1,17 +1,13 @@
-name: Release Teradata Trino distribution
+name: Release Teradata connector
 
-# Manually triggered from the GitHub Actions tab ("Run workflow").
-# Builds a full Teradata Trino distribution (server + CLI + Teradata connector)
-# and publishes a GitHub release with those artifacts attached.
-#
-# Normal release:     run with ref = develop (default).
-# Stabilized release: cut a release/<version> branch first, then run with that ref.
+# Manually build the Teradata connector plugin and publish a GitHub release with
+# only the connector zip attached. The version defaults to the root pom.xml version.
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version, e.g. 3.0.0 (tag becomes teradata-trino-<version>)'
-        required: true
+        description: 'Release version. Leave blank to use the version from the root pom.xml.'
+        required: false
         type: string
       ref:
         description: 'Branch or commit to release from'
@@ -29,72 +25,198 @@ on:
         default: false
         type: boolean
 
-# GITHUB_TOKEN needs write access to create the tag, release, and upload assets.
+# Don't let two runs from the same ref clobber each other.
+concurrency:
+  group: teradata-release-${{ inputs.ref }}
+  cancel-in-progress: false
+
+# Needed to create the tag/release and upload assets.
 permissions:
   contents: write
 
 jobs:
-  release:
+  # Guard: only allow releases from a release-* branch (e.g. release-3.0.0).
+  validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
     steps:
-      - name: Free up disk space
-        # The full Trino build plus an ~800 MB server tarball needs headroom.
+      - name: Ensure release branch
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
-          df -h /
+          REF='${{ inputs.ref }}'
+          if [[ "$REF" =~ ^release-.+ ]]; then
+            echo "Releasing from '$REF'."
+          else
+            echo "::error::Releases must run from a release-* branch (e.g. release-3.0.0). Got '$REF'."
+            exit 1
+          fi
 
+  # Gate: build the docs first. Sphinx runs with -W (warnings = errors), so a broken
+  # doc fails this job and, via `needs: docs`, skips the release entirely.
+  docs:
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
       - name: Check out ${{ inputs.ref }}
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0  # full history so --generate-notes can diff previous tag
 
-      - name: Set up JDK 25
+      - name: Read build JDK from pom
+        id: jdk
+        # grep (no Java needed) so we can pick the JDK before installing it.
+        run: |
+          set -euo pipefail
+          JDK=$(grep -oP '(?<=<project.build.targetJdk>)[^<]+' pom.xml | head -1 || true)
+          [ -n "$JDK" ] || { echo "Could not read project.build.targetJdk from pom.xml"; exit 1; }
+          echo "version=$JDK" >> "$GITHUB_OUTPUT"
+          echo "Build JDK: $JDK"
+
+      - name: Set up JDK ${{ steps.jdk.outputs.version }}
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '25'
+          java-version: ${{ steps.jdk.outputs.version }}
           cache: 'maven'
 
-      - name: Build server, CLI and Teradata connector
-        # -am builds the three targets plus everything they depend on. The server
-        # bundles all connectors (including Teradata), so this is effectively a full
-        # build; trino-docs is not a dependency, so it is skipped automatically.
-        run: |
-          ./mvnw -B -T1C install \
-            -pl core/trino-server,client/trino-cli,plugin/trino-teradata -am \
-            -DskipTests -Dair.check.skip-all=true
+      - name: Build documentation
+        # Build the full docs so Sphinx's -W (warnings = errors) still gates the release,
+        # even though only the Teradata connector page is published below.
+        run: ./mvnw -B -pl docs -am install -Dmaven.test.skip=true
 
-      - name: Stage release artifacts as ${{ inputs.version }}
-        id: stage
+      - name: Assemble Teradata-only site
+        # Publish just the Teradata connector page plus the shared static assets it needs;
+        # a root index.html redirects there so the Pages URL lands on the page. Cross-links
+        # from the page to other (unpublished) docs sections will not resolve.
+        run: |
+          set -euo pipefail
+          src=docs/target/html
+          out=docs/target/pages
+          [ -f "$src/connector/teradata.html" ] || { echo "::error::connector/teradata.html not found in the built docs"; exit 1; }
+          rm -rf "$out"
+          mkdir -p "$out/connector"
+          cp "$src/connector/teradata.html" "$out/connector/teradata.html"
+          cp -R "$src/_static" "$out/_static"
+          # Sphinx bakes the pom version (e.g. 482-SNAPSHOT) into the page title and
+          # documentation_options.js; strip the -SNAPSHOT suffix so the published docs
+          # show a bare version (e.g. "Trino 482 Documentation").
+          find "$out" -type f \( -name '*.html' -o -name '*.js' \) -print0 \
+            | xargs -0 sed -i -E 's/([0-9][0-9.]*)-SNAPSHOT/\1/g'
+          # Trim site-wide chrome that does not belong on a standalone connector page:
+          #  - md-sidebar--primary: the left nav listing other connectors / dead links
+          #  - md-header-nav__source: the top-right trinodb/trino GitHub repo + stars badge
+          sed -i 's#</head>#<style>.md-sidebar--primary,.md-header-nav__source{display:none!important}</style></head>#' \
+            "$out/connector/teradata.html"
+          printf '%s\n' \
+            '<!DOCTYPE html>' \
+            '<meta charset="utf-8">' \
+            '<meta http-equiv="refresh" content="0; url=./connector/teradata.html">' \
+            '<link rel="canonical" href="./connector/teradata.html">' \
+            '<title>Teradata connector for Trino</title>' \
+            '<a href="./connector/teradata.html">Teradata connector documentation</a>' \
+            > "$out/index.html"
+
+      - name: Upload docs as Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/target/pages
+
+  # Publish the built docs to GitHub Pages (https://teradata.github.io/trino/).
+  deploy-docs:
+    needs: docs
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  release:
+    needs: docs
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0  # full history for --generate-notes
+
+      - name: Read build JDK from pom
+        id: jdk
+        # grep (no Java needed) so we can pick the JDK before installing it.
+        run: |
+          set -euo pipefail
+          JDK=$(grep -oP '(?<=<project.build.targetJdk>)[^<]+' pom.xml | head -1 || true)
+          [ -n "$JDK" ] || { echo "Could not read project.build.targetJdk from pom.xml"; exit 1; }
+          echo "version=$JDK" >> "$GITHUB_OUTPUT"
+          echo "Build JDK: $JDK"
+
+      - name: Set up JDK ${{ steps.jdk.outputs.version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: ${{ steps.jdk.outputs.version }}
+          cache: 'maven'
+
+      - name: Determine version
+        id: ver
+        # Use the input if given, else read it from the root pom.xml. Strip any -SNAPSHOT
+        # suffix so the release build is a bare number (e.g. 482-SNAPSHOT -> 482).
         run: |
           set -euo pipefail
           V='${{ inputs.version }}'
-          mkdir -p dist
-          cp core/trino-server/target/trino-server-*.tar.gz         "dist/trino-server-${V}.tar.gz"
-          cp client/trino-cli/target/trino-cli-*-executable.jar     "dist/trino-cli-${V}"
-          cp plugin/trino-teradata/target/trino-teradata-*.zip      "dist/trino-teradata-${V}.zip"
-          echo "Staged artifacts:"
-          ls -lh dist/
+          if [ -z "$V" ]; then
+            V=$(./mvnw -q -N help:evaluate -Dexpression=project.version -DforceStdout 2>/dev/null | tail -1)
+          fi
+          V="${V%-SNAPSHOT}"
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Release version: $V"
+
+      - name: Build Teradata connector plugin
+        # Only the connector (+ its Maven deps). -DskipTests still builds inter-module test-jars.
+        run: |
+          ./mvnw -B -T1C -pl plugin/trino-teradata -am install \
+            -DskipTests
 
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          TAG="teradata-trino-${{ inputs.version }}"
+          V='${{ steps.ver.outputs.version }}'
+          TAG="teradata-trino-${V}"
+          NOTES_FILE="release-notes/teradata-trino-${V}.md"
           DRAFT=''; [ '${{ inputs.draft }}' = 'true' ] && DRAFT='--draft'
           PRE='';   [ '${{ inputs.prerelease }}' = 'true' ] && PRE='--prerelease'
 
-          # Create the release if it does not exist yet; ignore failure if it does.
-          if ! gh release view "$TAG" >/dev/null 2>&1; then
-            gh release create "$TAG" \
-              --target "${{ inputs.ref }}" \
-              --title "Teradata connector for Trino ${{ inputs.version }}" \
-              --generate-notes \
-              $DRAFT $PRE
+          # Release body: if a per-version notes file exists on the ref, link to it (future use);
+          # otherwise link to the published documentation on GitHub Pages.
+          exists=false; gh release view "$TAG" >/dev/null 2>&1 && exists=true
+
+          if [ -f "$NOTES_FILE" ]; then
+            # Link to the exact built commit (a stale tag could predate the file and 404).
+            SHA=$(git rev-parse HEAD)
+            NOTES_URL="https://github.com/${{ github.repository }}/blob/${SHA}/${NOTES_FILE}"
+            BODY="See the [release notes](${NOTES_URL}) or the [Trino installation guide](https://trino.io/docs/current/installation.html)."
+          else
+            BODY="See the [documentation](https://teradata.github.io/trino/connector/teradata.html) or the [Trino installation guide](https://trino.io/docs/current/installation.html)."
           fi
 
-          # Upload (or replace) the artifacts.
-          gh release upload "$TAG" dist/* --clobber
+          if [ "$exists" = true ]; then
+            gh release edit "$TAG" --notes "$BODY"
+          else
+            gh release create "$TAG" --target "${{ inputs.ref }}" \
+              --title "Teradata connector for Trino ${V}" --notes "$BODY" $DRAFT $PRE
+          fi
+
+          # The built zip carries the pom version (e.g. -SNAPSHOT); rename it to the release
+          # version so the published asset is trino-teradata-<version>.zip with no suffix.
+          built=$(ls plugin/trino-teradata/target/trino-teradata-*.zip | head -1)
+          asset="plugin/trino-teradata/target/trino-teradata-${V}.zip"
+          [ "$built" = "$asset" ] || cp "$built" "$asset"
+          gh release upload "$TAG" "$asset" --clobber
