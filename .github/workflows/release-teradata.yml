@@ -1,0 +1,75 @@
+name: Release Teradata connector
+
+# Manually triggered from the GitHub Actions tab ("Run workflow").
+# Builds the Teradata connector plugin and publishes a GitHub release.
+#
+# Normal release:  run with ref = develop (default).
+# Stabilized release: cut a release/<version> branch first, then run with that ref.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 3.0.0 (tag becomes teradata-trino-<version>)'
+        required: true
+        type: string
+      ref:
+        description: 'Branch or commit to release from'
+        required: true
+        default: 'develop'
+        type: string
+      draft:
+        description: 'Create as a draft (review before publishing)'
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: 'Mark as a pre-release'
+        required: true
+        default: false
+        type: boolean
+
+# GITHUB_TOKEN needs write access to create the tag and release.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # Full history so release notes can diff against the previous tag.
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      - name: Build Teradata connector plugin
+        run: |
+          ./mvnw -B -pl plugin/trino-teradata -am install \
+            -DskipTests -Dair.check.skip-all=true
+
+      - name: Locate plugin artifact
+        id: artifact
+        run: |
+          zip=$(ls plugin/trino-teradata/target/*.zip | head -1)
+          echo "Found artifact: $zip"
+          echo "path=$zip" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "teradata-trino-${{ inputs.version }}" \
+            --target "${{ inputs.ref }}" \
+            --title "Teradata connector for Trino ${{ inputs.version }}" \
+            --generate-notes \
+            ${{ inputs.draft && '--draft' || '' }} \
+            ${{ inputs.prerelease && '--prerelease' || '' }} \
+            "${{ steps.artifact.outputs.path }}"
