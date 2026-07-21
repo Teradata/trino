@@ -1,0 +1,100 @@
+name: Release Teradata Trino distribution
+
+# Manually triggered from the GitHub Actions tab ("Run workflow").
+# Builds a full Teradata Trino distribution (server + CLI + Teradata connector)
+# and publishes a GitHub release with those artifacts attached.
+#
+# Normal release:     run with ref = develop (default).
+# Stabilized release: cut a release/<version> branch first, then run with that ref.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version, e.g. 3.0.0 (tag becomes teradata-trino-<version>)'
+        required: true
+        type: string
+      ref:
+        description: 'Branch or commit to release from'
+        required: true
+        default: 'develop'
+        type: string
+      draft:
+        description: 'Create as a draft (review before publishing)'
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: 'Mark as a pre-release'
+        required: true
+        default: false
+        type: boolean
+
+# GITHUB_TOKEN needs write access to create the tag, release, and upload assets.
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Free up disk space
+        # The full Trino build plus an ~800 MB server tarball needs headroom.
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Check out ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0  # full history so --generate-notes can diff previous tag
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'maven'
+
+      - name: Build server, CLI and Teradata connector
+        # -am builds the three targets plus everything they depend on. The server
+        # bundles all connectors (including Teradata), so this is effectively a full
+        # build; trino-docs is not a dependency, so it is skipped automatically.
+        run: |
+          ./mvnw -B -T1C install \
+            -pl core/trino-server,client/trino-cli,plugin/trino-teradata -am \
+            -DskipTests -Dair.check.skip-all=true
+
+      - name: Stage release artifacts as ${{ inputs.version }}
+        id: stage
+        run: |
+          set -euo pipefail
+          V='${{ inputs.version }}'
+          mkdir -p dist
+          cp core/trino-server/target/trino-server-*.tar.gz         "dist/trino-server-${V}.tar.gz"
+          cp client/trino-cli/target/trino-cli-*-executable.jar     "dist/trino-cli-${V}"
+          cp plugin/trino-teradata/target/trino-teradata-*.zip      "dist/trino-teradata-${V}.zip"
+          echo "Staged artifacts:"
+          ls -lh dist/
+
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="teradata-trino-${{ inputs.version }}"
+          DRAFT=''; [ '${{ inputs.draft }}' = 'true' ] && DRAFT='--draft'
+          PRE='';   [ '${{ inputs.prerelease }}' = 'true' ] && PRE='--prerelease'
+
+          # Create the release if it does not exist yet; ignore failure if it does.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --target "${{ inputs.ref }}" \
+              --title "Teradata connector for Trino ${{ inputs.version }}" \
+              --generate-notes \
+              $DRAFT $PRE
+          fi
+
+          # Upload (or replace) the artifacts.
+          gh release upload "$TAG" dist/* --clobber
