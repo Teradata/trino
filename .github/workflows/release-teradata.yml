@@ -2,6 +2,8 @@ name: Release Teradata connector
 
 # Manually build the Teradata connector plugin and publish a GitHub release with
 # only the connector zip attached. The version defaults to the root pom.xml version.
+# The full ci-teradata pipeline (unit + ClearScape integration tests) must pass against
+# the release ref before anything is published.
 on:
   workflow_dispatch:
     inputs:
@@ -21,6 +23,11 @@ on:
         type: boolean
       prerelease:
         description: 'Mark as a pre-release'
+        required: true
+        default: false
+        type: boolean
+      skip_tests:
+        description: 'Skip the CI test gate (emergency use only)'
         required: true
         default: false
         type: boolean
@@ -49,10 +56,26 @@ jobs:
             exit 1
           fi
 
-  # Gate: build the docs first. Sphinx runs with -W (warnings = errors), so a broken
-  # doc fails this job and, via `needs: docs`, skips the release entirely.
-  docs:
+  # Gate: run the full ci-teradata pipeline against the release ref. run_all_tests bypasses
+  # GIB so the whole matrix runs regardless of branch drift; require_secrets makes the
+  # ClearScape steps fail (not silently skip) if their secrets are missing. Skippable only
+  # via the explicit skip_tests input for emergencies.
+  tests:
     needs: validate
+    if: inputs.skip_tests != true
+    uses: ./.github/workflows/ci-teradata.yml
+    with:
+      target_branch: ${{ inputs.ref }}
+      run_all_tests: true
+      require_secrets: true
+    secrets: inherit
+
+  # Gate: build the docs. Sphinx runs with -W (warnings = errors), so a broken doc fails this
+  # job and, via `needs: docs`, skips the release entirely.
+  docs:
+    needs: [validate, tests]
+    # `tests` is skipped when skip_tests=true; !failure() lets docs still run in that case.
+    if: always() && needs.validate.result == 'success' && !failure() && !cancelled()
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
