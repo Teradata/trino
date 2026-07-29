@@ -136,22 +136,19 @@ this table:
 *
     - `NUMBER(p, s)`
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. See
-      [](postgresql-decimal-type-handling) for more information.
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
 
 *
     - `NUMERIC(p, s)`
 
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. See
-      [](postgresql-decimal-type-handling) for more information.
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
 
 *
     - `DECIMAL(p, s)`
 
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. See
-      [](postgresql-decimal-type-handling) for more information.
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
 
 *
     - `CHAR(n)`
