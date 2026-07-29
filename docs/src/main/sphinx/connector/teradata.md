@@ -136,19 +136,19 @@ this table:
 *
     - `NUMBER(p, s)`
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`.
 
 *
     - `NUMERIC(p, s)`
 
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`.
 
 *
     - `DECIMAL(p, s)`
 
     - `DECIMAL(p, s)`
-    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`. 
+    - `DECIMAL(p, s)` is an alias of `NUMERIC(p, s)`.
 
 *
     - `CHAR(n)`
@@ -263,6 +263,8 @@ statements, the connector supports the following features:
 - [](sql-schema-table-management)
 - [](sql-view-management), see details for [](teradata-view-management)
 - [](/sql/merge), see also [](teradata-merge)
+- [](teradata-procedures)
+- [](teradata-table-functions)
 
 (teradata-merge)=
 
@@ -270,13 +272,13 @@ statements, the connector supports the following features:
 ```
 
 (teradata-view-management)=
-## View management
+### View management
 
 The connector fully supports Trino {ref}`view management <sql-view-management>`
 for Teradata views.
 
 (teradata-view-storage)=
-### View storage
+#### View storage
 
 Trino views are not stored as native Teradata views. Instead, view definitions
 are stored as rows in a metadata table called `trino_views` inside a dedicated
@@ -306,7 +308,7 @@ will not show these views as native database objects.
 :::
 
 (teradata-create-view)=
-### Create a view
+#### Create a view
 
 Use {doc}`/sql/create-view` to create a view. Trino maps `CREATE OR REPLACE
 VIEW` to Teradata's native `REPLACE VIEW` syntax so that existing views are
@@ -322,7 +324,7 @@ GROUP BY region;
 ```
 
 (teradata-drop-view)=
-### Drop a view
+#### Drop a view
 
 Use {doc}`/sql/drop-view`:
 
@@ -331,7 +333,7 @@ DROP VIEW example.sales.revenue_by_region;
 ```
 
 (teradata-alter-view)=
-### Rename a view
+#### Rename a view
 
 Use {doc}`/sql/alter-view` to rename a view:
 
@@ -340,7 +342,7 @@ ALTER VIEW example.sales.revenue_by_region RENAME TO example.sales.revenue_summa
 ```
 
 (teradata-show-create-view)=
-### Show the view definition
+#### Show the view definition
 
 Use {doc}`/sql/show-create-view` to display the SQL that defines a view:
 
@@ -349,7 +351,7 @@ SHOW CREATE VIEW example.sales.revenue_summary;
 ```
 
 (teradata-comment-view)=
-### Comment on a view or view column
+#### Comment on a view or view column
 
 Use the {doc}`/sql/comment` statement to set or clear comments on views and
 view columns:
@@ -366,7 +368,7 @@ COMMENT ON TABLE example.sales.revenue_summary IS NULL;
 ```
 
 (teradata-procedures)=
-## Procedures
+### Procedures
 
 ```{include} jdbc-procedures-flush.fragment
 ```
@@ -374,13 +376,13 @@ COMMENT ON TABLE example.sales.revenue_summary IS NULL;
 ```
 
 (teradata-table-functions)=
-## Table functions
+### Table functions
 
 The connector provides specific {doc}`table functions </functions/table>` to
 access Teradata.
 
 (teradata-query-function)=
-### `query(varchar) -> table`
+#### `query(varchar) -> table`
 
 The `query` function allows you to query the underlying database directly. It
 requires syntax native to Teradata, because the full query is pushed down and
