@@ -49,8 +49,9 @@ jobs:
             exit 1
           fi
 
-  # Gate: build the docs first. Sphinx runs with -W (warnings = errors), so a broken
-  # doc fails this job and, via `needs: docs`, skips the release entirely.
+  # Build the docs. Sphinx runs with -W (warnings = errors), so a broken doc fails here.
+  # Nothing is published from this job; `deploy-docs` and `release` both wait on this AND
+  # on `build`, so docs and plugin either publish together or not at all.
   docs:
     needs: validate
     runs-on: ubuntu-latest
@@ -101,6 +102,9 @@ jobs:
           # show a bare version (e.g. "Trino 482 Documentation").
           find "$out" -type f \( -name '*.html' -o -name '*.js' \) -print0 \
             | xargs -0 sed -i -E 's/([0-9][0-9.]*)-SNAPSHOT/\1/g'
+          # Rebrand the Sphinx title here rather than in upstream-owned conf.py; the optional prefix keeps it idempotent.
+          find "$out" -type f \( -name '*.html' -o -name '*.js' \) -print0 \
+            | xargs -0 sed -i -E 's/(Teradata )?Trino ([0-9][0-9.]*) Documentation/Teradata Trino \2 Documentation/g'
           # Trim site-wide chrome that does not belong on a standalone connector page:
           #  - md-sidebar--primary: the left nav listing other connectors / dead links
           #  - md-header-nav__source: the top-right trinodb/trino GitHub repo + stars badge
@@ -121,8 +125,9 @@ jobs:
           path: docs/target/pages
 
   # Publish the built docs to GitHub Pages (https://teradata.github.io/trino/).
+  # Needs `build` too: a failing connector build must not leave the docs published.
   deploy-docs:
-    needs: docs
+    needs: [docs, build]
     runs-on: ubuntu-latest
     permissions:
       pages: write
@@ -135,16 +140,19 @@ jobs:
         id: deployment
         uses: actions/deploy-pages@v4
 
-  release:
-    needs: docs
+  # Build the connector zip, in parallel with `docs`. Publishes nothing: the artifact is
+  # handed to `release` below, so a docs failure can still cancel the release.
+  build:
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
     steps:
       - name: Check out ${{ inputs.ref }}
         uses: actions/checkout@v4
         with:
           ref: ${{ inputs.ref }}
-          fetch-depth: 0  # full history for --generate-notes
 
       - name: Read build JDK from pom
         id: jdk
@@ -183,12 +191,50 @@ jobs:
           ./mvnw -B -T1C -pl plugin/trino-teradata -am install \
             -DskipTests
 
+      - name: Stage the connector zip
+        # The built zip carries the pom version (e.g. -SNAPSHOT); rename it to the release
+        # version so the published asset is trino-teradata-<version>.zip with no suffix.
+        run: |
+          set -euo pipefail
+          V='${{ steps.ver.outputs.version }}'
+          mkdir -p dist
+          built=$(ls plugin/trino-teradata/target/trino-teradata-*.zip | head -1)
+          [ -n "$built" ] || { echo "::error::No connector zip produced by the build"; exit 1; }
+          cp "$built" "dist/trino-teradata-${V}.zip"
+
+      - name: Upload connector zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: trino-teradata-zip
+          path: dist/trino-teradata-*.zip
+          if-no-files-found: error
+          retention-days: 5
+
+  # Publish the release. Reached only when BOTH `docs` and `build` succeeded; it just
+  # downloads the already-built zip, so no JDK or Maven is needed here.
+  release:
+    needs: [docs, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out ${{ inputs.ref }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0  # full history so the notes link can point at the built commit
+
+      - name: Download connector zip
+        uses: actions/download-artifact@v4
+        with:
+          name: trino-teradata-zip
+          path: dist
+
       - name: Create or update the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          V='${{ steps.ver.outputs.version }}'
+          V='${{ needs.build.outputs.version }}'
           TAG="teradata-trino-${V}"
           NOTES_FILE="release-notes/teradata-trino-${V}.md"
           DRAFT=''; [ '${{ inputs.draft }}' = 'true' ] && DRAFT='--draft'
@@ -202,9 +248,9 @@ jobs:
             # Link to the exact built commit (a stale tag could predate the file and 404).
             SHA=$(git rev-parse HEAD)
             NOTES_URL="https://github.com/${{ github.repository }}/blob/${SHA}/${NOTES_FILE}"
-            BODY="See the [release notes](${NOTES_URL}) or the [Trino installation guide](https://trino.io/docs/current/installation.html)."
+            BODY="See the [release notes](${NOTES_URL}) or the [documentation](https://teradata.github.io/trino/connector/teradata.html)."
           else
-            BODY="See the [documentation](https://teradata.github.io/trino/connector/teradata.html) or the [Trino installation guide](https://trino.io/docs/current/installation.html)."
+            BODY="See the [documentation](https://teradata.github.io/trino/connector/teradata.html)."
           fi
 
           if [ "$exists" = true ]; then
@@ -214,9 +260,4 @@ jobs:
               --title "Teradata connector for Trino ${V}" --notes "$BODY" $DRAFT $PRE
           fi
 
-          # The built zip carries the pom version (e.g. -SNAPSHOT); rename it to the release
-          # version so the published asset is trino-teradata-<version>.zip with no suffix.
-          built=$(ls plugin/trino-teradata/target/trino-teradata-*.zip | head -1)
-          asset="plugin/trino-teradata/target/trino-teradata-${V}.zip"
-          [ "$built" = "$asset" ] || cp "$built" "$asset"
-          gh release upload "$TAG" "$asset" --clobber
+          gh release upload "$TAG" "dist/trino-teradata-${V}.zip" --clobber
