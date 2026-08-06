@@ -13,6 +13,8 @@ or between different Teradata instances.
 
 To connect to Teradata, you need:
 
+- A Trino installation. See the
+  [Trino installation guide](https://trino.io/docs/current/installation.html)
 - Teradata Database
 - Network access from the Trino coordinator and workers to Teradata. Port 1025
   is the default port
