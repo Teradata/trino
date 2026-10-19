@@ -9,12 +9,11 @@ of the Teradata Connector for Trino.
 
 For installation, configuration, supported features, and usage information, see
 the [Teradata Connector for Trino documentation](https://teradata.github.io/trino/connector/teradata.html).
-The broader documentation site is at [teradata.github.io/trino](https://teradata.github.io/trino/).
 
 ## Releases
 
 Tested versions of the Teradata Connector for Trino are published under
-[GitHub Releases](../../releases). Each release is identified by a tag of the
+[GitHub Releases](https://github.com/Teradata/trino/releases). Each release is identified by a tag of the
 form `teradata-trino-<trino-version>`. The release version always matches the
 Trino version it is built for (for example, `teradata-trino-482` is built for
 Trino 482).
@@ -33,7 +32,7 @@ the root `pom.xml`).
 
 ## Installation
 
-1. Download the plugin `.zip` from the [latest release](../../releases/latest).
+1. Download the plugin `.zip` from the [latest release](https://github.com/Teradata/trino/releases/latest).
 2. Unpack it into the `plugin/` directory of every Trino coordinator and worker.
 3. Create `etc/catalog/teradata.properties` and restart Trino.
 
@@ -76,7 +75,7 @@ list of changes.
 - Removed the legacy product tests, which depended on a test framework that
   upstream Trino has dropped.
 
-### [482](../../releases/tag/teradata-trino-482)
+### [482](https://github.com/Teradata/trino/releases/tag/teradata-trino-482)
 
 - Initial release of the Teradata Connector for Trino on Trino 482.
 - See the release page for details.
