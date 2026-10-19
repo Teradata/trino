@@ -17,6 +17,18 @@ To connect to Teradata, you need:
 - Network access from the Trino coordinator and workers to Teradata. Port 1025
   is the default port
 
+## Installation
+
+The Teradata connector is distributed as a plugin archive through the
+[GitHub Releases](https://github.com/Teradata/trino/releases) of the Teradata
+Trino repository. Use a published release rather than building from the
+development branch.
+
+1. Download the plugin `.zip` for the release that matches your Trino version.
+2. Unpack it into the `plugin` directory of every Trino coordinator and worker.
+3. Create a catalog properties file as described in the following section, and
+   restart Trino.
+
 ## Configuration
 
 To configure the Teradata connector, create a catalog properties file in
