@@ -41,12 +41,13 @@ import io.trino.plugin.jdbc.LongReadFunction;
 import io.trino.plugin.jdbc.LongWriteFunction;
 import io.trino.plugin.jdbc.ObjectReadFunction;
 import io.trino.plugin.jdbc.ObjectWriteFunction;
+import io.trino.plugin.jdbc.PredicatePushdownController.DomainPushdownResult;
 import io.trino.plugin.jdbc.PredicatePushdownController;
 import io.trino.plugin.jdbc.PreparedQuery;
 import io.trino.plugin.jdbc.QueryBuilder;
 import io.trino.plugin.jdbc.RemoteTableName;
-import io.trino.plugin.jdbc.SliceReadFunction;
 import io.trino.plugin.jdbc.SliceWriteFunction;
+import io.trino.plugin.jdbc.StandardColumnMappings;
 import io.trino.plugin.jdbc.WriteMapping;
 import io.trino.plugin.jdbc.aggregation.ImplementAvgDecimal;
 import io.trino.plugin.jdbc.aggregation.ImplementAvgFloatingPoint;
@@ -86,6 +87,7 @@ import io.trino.spi.connector.SchemaNotFoundException;
 import io.trino.spi.connector.SchemaTableName;
 import io.trino.spi.connector.ViewNotFoundException;
 import io.trino.spi.expression.ConnectorExpression;
+import io.trino.spi.predicate.Domain;
 import io.trino.spi.statistics.ColumnStatistics;
 import io.trino.spi.statistics.Estimate;
 import io.trino.spi.statistics.TableStatistics;
@@ -148,11 +150,11 @@ import java.util.stream.Collectors;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.utf8Slice;
-import static io.trino.plugin.base.util.JsonTypeUtil.jsonParse;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_INSENSITIVE;
 import static io.trino.plugin.jdbc.CaseSensitivity.CASE_SENSITIVE;
 import static io.trino.plugin.jdbc.JdbcErrorCode.JDBC_ERROR;
 import static io.trino.plugin.jdbc.JdbcJoinPushdownUtil.implementJoinCostAware;
+import static io.trino.plugin.jdbc.JdbcMetadataSessionProperties.getDomainCompactionThreshold;
 import static io.trino.plugin.jdbc.PredicatePushdownController.CASE_INSENSITIVE_CHARACTER_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.DISABLE_PUSHDOWN;
 import static io.trino.plugin.jdbc.PredicatePushdownController.FULL_PUSHDOWN;
@@ -168,6 +170,7 @@ import static io.trino.plugin.jdbc.StandardColumnMappings.doubleWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.fromTrinoTime;
 import static io.trino.plugin.jdbc.StandardColumnMappings.integerColumnMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.integerWriteFunction;
+import static io.trino.plugin.jdbc.StandardColumnMappings.jsonWriteMapping;
 import static io.trino.plugin.jdbc.StandardColumnMappings.longDecimalWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.realWriteFunction;
 import static io.trino.plugin.jdbc.StandardColumnMappings.shortDecimalWriteFunction;
@@ -228,6 +231,26 @@ public class TeradataClient
         extends BaseJdbcClient
 {
     private static final PredicatePushdownController TERADATA_STRING_PUSHDOWN = FULL_PUSHDOWN;
+    // Teradata compares character data with PAD SPACE semantics: trailing spaces are not significant, so a pushed
+    // equality or IN predicate can match values that differ only in trailing spaces, returning more rows than
+    // Trino's NO PAD comparison. Push equality / IN down only as a superset pre-filter and keep the engine filter
+    // to re-apply the exact comparison; disable inequality and range, which cannot be expressed as a safe superset.
+    private static final PredicatePushdownController TERADATA_VARCHAR_PUSHDOWN = (session, domain) -> {
+        if (domain.isOnlyNull()) {
+            return FULL_PUSHDOWN.apply(session, domain);
+        }
+
+        if (!domain.getValues().isDiscreteSet()) {
+            return DISABLE_PUSHDOWN.apply(session, domain);
+        }
+
+        Domain simplifiedDomain = domain.simplify(getDomainCompactionThreshold(session));
+        if (!simplifiedDomain.getValues().isDiscreteSet()) {
+            // Domain#simplify can turn a discrete set into a range predicate
+            return DISABLE_PUSHDOWN.apply(session, domain);
+        }
+        return new DomainPushdownResult(simplifiedDomain, domain);
+    };
     private static final String VIEW_TABLE_NAME = "trino_views";
     private static final String VIEW_COL_SEPARATOR = "\t";
     private static final String VIEW_ROW_SEPARATOR = "\n";
@@ -401,7 +424,7 @@ public class TeradataClient
                 varcharType,
                 varcharReadFunction(varcharType),
                 varcharWriteFunction(),
-                isCaseSensitive ? TERADATA_STRING_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
+                isCaseSensitive ? TERADATA_VARCHAR_PUSHDOWN : CASE_INSENSITIVE_CHARACTER_PUSHDOWN);
     }
 
     private static Optional<JdbcTypeHandle> toTypeHandle(DecimalType decimalType)
@@ -1265,11 +1288,8 @@ public class TeradataClient
                 .add(new RewriteUpper())
                 .withTypeClass("integer_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint"))
                 .withTypeClass("numeric_type", ImmutableSet.of("tinyint", "smallint", "integer", "bigint", "decimal", "real", "double"))
-                .withTypeClass("string_type", ImmutableSet.of("char", "varchar"))
                 .map("$equal(left: numeric_type, right: numeric_type)").to("left = right")
                 .map("$not_equal(left: numeric_type, right: numeric_type)").to("left <> right")
-                .map("$equal(left: string_type, right: string_type)").to("left = right")
-                .map("$not_equal(left: string_type, right: string_type)").to("left <> right")
                 .map("$less_than(left: numeric_type, right: numeric_type)").to("left < right")
                 .map("$less_than_or_equal(left: numeric_type, right: numeric_type)").to("left <= right")
                 .map("$greater_than(left: numeric_type, right: numeric_type)").to("left > right")
@@ -1440,7 +1460,7 @@ public class TeradataClient
     public WriteMapping toWriteMapping(ConnectorSession session, Type type)
     {
         return switch (type) {
-            case Type typeInstance when typeInstance.equals(jsonType) -> WriteMapping.sliceMapping("JSON", typedVarcharWriteFunction());
+            case Type typeInstance when typeInstance.equals(jsonType) -> jsonWriteMapping("JSON", typedVarcharWriteFunction());
             case Type typeInstance when typeInstance == TINYINT -> WriteMapping.longMapping("smallint", tinyintWriteFunction());
             case Type typeInstance when typeInstance == SMALLINT -> WriteMapping.longMapping("smallint", smallintWriteFunction());
             case Type typeInstance when typeInstance == INTEGER -> WriteMapping.longMapping("integer", integerWriteFunction());
@@ -1481,22 +1501,7 @@ public class TeradataClient
 
     private ColumnMapping jsonColumnMapping()
     {
-        return ColumnMapping.sliceMapping(
-                jsonType,
-                jsonReadFunction(),
-                typedVarcharWriteFunction(),
-                DISABLE_PUSHDOWN);
-    }
-
-    private SliceReadFunction jsonReadFunction()
-    {
-        return (resultSet, columnIndex) -> {
-            String json = resultSet.getString(columnIndex);
-            if (json == null) {
-                return null;
-            }
-            return jsonParse(utf8Slice(json));
-        };
+        return StandardColumnMappings.jsonColumnMapping(jsonType, typedVarcharWriteFunction());
     }
 
     private ColumnMapping arrayColumnMapping()
