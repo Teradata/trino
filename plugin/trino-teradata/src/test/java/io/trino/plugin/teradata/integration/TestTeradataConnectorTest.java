@@ -21,6 +21,7 @@ import io.trino.plugin.jdbc.BaseJdbcConnectorTest;
 import io.trino.plugin.jdbc.JdbcTableHandle;
 import io.trino.plugin.jdbc.expression.ComparisonOperator;
 import io.trino.spi.connector.ConnectorTableHandle;
+import io.trino.sql.planner.plan.FilterNode;
 import io.trino.sql.planner.plan.ProjectNode;
 import io.trino.sql.query.QueryAssertions;
 import io.trino.testing.MaterializedResult;
@@ -50,6 +51,7 @@ import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static com.google.common.collect.ImmutableList.toImmutableList;
+import static io.trino.SystemSessionProperties.LEGACY_VARCHAR_TO_CHAR_COERCION;
 import static io.trino.plugin.teradata.integration.clearscape.ClearScapeEnvironmentUtils.generateUniqueEnvName;
 import static io.trino.spi.connector.ConnectorMetadata.MODIFYING_ROWS_MESSAGE;
 import static io.trino.testing.TestingConnectorBehavior.SUPPORTS_ADD_COLUMN_WITH_POSITION;
@@ -85,7 +87,15 @@ final class TestTeradataConnectorTest
     {
         requireNonNull(verifyResults, "verifyResults is null");
         requireNonNull(verifyFailure, "verifyFailure is null");
+
         QueryAssertions.QueryAssert queryAssert = assertThat(queryAssertProvider);
+        try {
+            var _ = queryAssert.result();
+        }
+        catch (Throwable t) {
+            verifyFailure.accept(queryAssert.failure());
+            return;
+        }
         verifyResults.accept(queryAssert);
     }
 
@@ -96,6 +106,30 @@ final class TestTeradataConnectorTest
             nameInSql = "\"" + columnName.replace("\"", "\"\"") + "\"";
         }
         return nameInSql;
+    }
+
+    // Teradata defaults the primary index to the first column when CREATE TABLE does not declare one, and it rejects
+    // updating a primary index column (Error 5977). The write tests pass the column they intend to key on, so declare
+    // it explicitly. Only column-list definitions need this; for "AS <query>" forms Teradata already defaults the
+    // primary index to the first selected column, which is the column these tests pass.
+    @Override
+    protected TestTable createTestTableForWrites(String namePrefix, String tableDefinition, String primaryKey)
+    {
+        return newTrinoTable(namePrefix, withPrimaryIndex(tableDefinition, primaryKey));
+    }
+
+    @Override
+    protected TestTable createTestTableForWrites(String namePrefix, String tableDefinition, List<String> rowsToInsert, String primaryKey)
+    {
+        return newTrinoTable(namePrefix, withPrimaryIndex(tableDefinition, primaryKey), rowsToInsert);
+    }
+
+    private static String withPrimaryIndex(String tableDefinition, String primaryKey)
+    {
+        if (!tableDefinition.trim().startsWith("(")) {
+            return tableDefinition;
+        }
+        return tableDefinition + " PRIMARY INDEX (" + primaryKey + ")";
     }
 
     private static String rewriteCreateTableQuery(String sql)
@@ -178,6 +212,12 @@ final class TestTeradataConnectorTest
                  SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
                  SUPPORTS_MAP_TYPE,
                  SUPPORTS_NEGATIVE_DATE,
+                 // Teradata compares character data with PAD SPACE semantics, so varchar equality/IN is pushed only as a
+                 // superset pre-filter with the exact predicate re-applied by the engine, and varchar inequality/range is
+                 // not pushed at all; neither is therefore fully pushed down. This also cascades
+                 // SUPPORTS_JOIN_PUSHDOWN_WITH_VARCHAR_EQUALITY off, which is correct as varchar join equality is not pushed.
+                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_EQUALITY,
+                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
                  SUPPORTS_RENAME_SCHEMA,
                  SUPPORTS_RENAME_TABLE_ACROSS_SCHEMAS,
                  SUPPORTS_REFRESH_VIEW,
@@ -202,7 +242,6 @@ final class TestTeradataConnectorTest
                  SUPPORTS_PREDICATE_ARITHMETIC_EXPRESSION_PUSHDOWN,
                  SUPPORTS_PREDICATE_EXPRESSION_PUSHDOWN,
                  SUPPORTS_PREDICATE_PUSHDOWN,
-                 SUPPORTS_PREDICATE_PUSHDOWN_WITH_VARCHAR_INEQUALITY,
                  SUPPORTS_RENAME_COLUMN,
                  SUPPORTS_RENAME_TABLE,
                  SUPPORTS_ROW_LEVEL_DELETE,
@@ -415,9 +454,51 @@ final class TestTeradataConnectorTest
     {
         String testTableName = "test_char_varchar";
         try (TestTable table = newTrinoTable(testTableName, "(k int, v char(3))", List.of("-1, CAST(NULL AS char(3))", "3, CAST('   ' AS char(3))", "6, CAST('x  ' AS char(3))"))) {
-            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(2))", "VALUES (3, '   ')");
-            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('  ' AS varchar(4))", "VALUES (3, '   ')");
-            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS varchar(2))", "VALUES (6, 'x  ')");
+            // The char value is coerced to varchar by trimming trailing spaces, then compared as varchar
+            // (no blank padding): char '   ' becomes '' and char 'x  ' becomes 'x'.
+            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('' AS varchar(2))", "VALUES (3, '   ')");
+            assertQuery("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x' AS varchar(2))", "VALUES (6, 'x  ')");
+            // Trailing spaces in the varchar are significant, so a space-padded value matches nothing.
+            assertQueryReturnsEmptyResult("SELECT k, v FROM " + table.getName() + " WHERE v = CAST('x ' AS varchar(2))");
+        }
+    }
+
+    @Override
+    // Overriding this test case as Teradata doesn't have support to (k, v) AS VALUES in insert statement
+    @Test
+    public void testCharToVarcharCastCoercionAcrossPushdown()
+    {
+        skipTestUnless(hasBehavior(TestingConnectorBehavior.SUPPORTS_CREATE_TABLE));
+
+        try (TestTable table = newTrinoTable(
+                "test_char_to_varchar_cast",
+                "(k int, v char(5))",
+                ImmutableList.of(
+                        "0, CAST(NULL AS char(5))",
+                        "1, CAST('' AS char(5))",
+                        "2, CAST('ab' AS char(5))",
+                        "3, CAST('abc' AS char(5))",
+                        "4, CAST('abcde' AS char(5))"))) {
+            for (boolean legacy : List.of(false, true)) {
+                try {
+                    Session session = Session.builder(getSession()).setSystemProperty(LEGACY_VARCHAR_TO_CHAR_COERCION, Boolean.toString(legacy)).build();
+                    // Test potential CAST(char AS varchar) projection pushdown
+                    assertThat(query(session, "SELECT k, CAST(v AS varchar(1)) FROM " + table.getName())).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k, CAST(v AS varchar(3)) FROM " + table.getName())).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k, CAST(v AS varchar(6)) FROM " + table.getName())).hasCorrectResultsRegardlessOfPushdown();
+
+                    // Test potential CAST(char AS varchar) predicate pushdown
+                    assertThat(query(session, "SELECT k FROM " + table.getName() + " WHERE CAST(v AS varchar(2)) = CAST('ab' AS varchar(3))")).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k FROM " + table.getName() + " WHERE CAST(v AS varchar(6)) = CAST('abc' AS varchar(6))")).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k FROM " + table.getName() + " WHERE CAST(v AS varchar(6)) = CAST('abc ' AS varchar(6))")).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k FROM " + table.getName() + " WHERE CAST(v AS varchar(6)) = CAST('abc  ' AS varchar(6))")).hasCorrectResultsRegardlessOfPushdown();
+                    assertThat(query(session, "SELECT k FROM " + table.getName() + " WHERE CAST(v AS varchar(6)) = CAST('abc   ' AS varchar(6))")).hasCorrectResultsRegardlessOfPushdown();
+                }
+                catch (Throwable t) {
+                    t.addSuppressed(new Exception("Using %s=%s".formatted(LEGACY_VARCHAR_TO_CHAR_COERCION, legacy)));
+                    throw t;
+                }
+            }
         }
     }
 
@@ -892,9 +973,10 @@ final class TestTeradataConnectorTest
                             "(2, CAST('brazil' AS varchar(25))), " +
                             "(3, CAST('canada' AS varchar(25))), " +
                             "(4, CAST('egypt' AS varchar(25)))");
-            // Predicate with LOWER() pushed down (name already VARCHAR(25))
+            // LOWER() is pushed down, but the varchar equality around it is not: Teradata compares varchar with PAD
+            // SPACE, so the engine re-applies the exact NO PAD comparison and a residual filter remains
             assertThat(query("SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE LOWER(name) = 'algeria'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (0, CAST('ALGERIA' AS varchar(25)), 0)");
         }
     }
@@ -914,9 +996,9 @@ final class TestTeradataConnectorTest
                             "(2, CAST('BRAZIL' AS varchar(25))), " +
                             "(3, CAST('CANADA' AS varchar(25))), " +
                             "(4, CAST('EGYPT' AS varchar(25)))");
-            // Predicate with UPPER() fully pushed down
+            // UPPER() is pushed down, but the varchar equality around it is not (PAD SPACE, see testLowerPushdown)
             assertThat(query("SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE UPPER(name) = 'BRAZIL'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (2, CAST('brazil' AS varchar(25)), 1)");
         }
     }
@@ -936,15 +1018,15 @@ final class TestTeradataConnectorTest
                             "(0, CAST('AL' AS varchar(25)), 0), " +
                             "(1, CAST('AR' AS varchar(25)), 1), " +
                             "(2, CAST('BR' AS varchar(25)), 1)");
-            // Verify SUBSTRING in predicate - fully pushed down as a filter
+            // SUBSTRING() is pushed down, but the varchar equality around it is not (PAD SPACE, see testLowerPushdown)
             assertThat(query(
                     "SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE SUBSTRING(name, 1, 2) = 'AR'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (1, CAST('ARGENTINA' AS varchar(25)), 1)");
             // Verify SUBSTRING with single parameter
             assertThat(query(
                     "SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE SUBSTRING(name, 1) = 'BRAZIL'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (2, CAST('BRAZIL' AS varchar(25)), 1)");
         }
     }
@@ -956,15 +1038,15 @@ final class TestTeradataConnectorTest
                 "test_nested_substring" + randomNameSuffix(),
                 "(nationkey INTEGER, name VARCHAR(25), regionkey INTEGER)",
                 List.of("0, 'algeria', 0", "1, 'argentina', 1", "2, 'brazil', 1", "3, 'canada', 1", "4, 'egypt', 0"))) {
-            // Verify UPPER(SUBSTRING(...)) in predicate - fully pushed down
+            // UPPER(SUBSTRING(...)) is pushed down, but the varchar equality around it is not (PAD SPACE)
             assertThat(query(
                     "SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE UPPER(SUBSTRING(name, 1, 1)) = 'C'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (3, CAST('canada' AS varchar(25)), 1)");
-            // Verify LOWER(SUBSTRING(...)) in predicate - fully pushed down
+            // LOWER(SUBSTRING(...)) behaves the same way
             assertThat(query(
                     "SELECT nationkey, name, regionkey FROM " + table.getName() + " WHERE LOWER(SUBSTRING(name, 1, 3)) = 'arg'"))
-                    .isFullyPushedDown()
+                    .isNotFullyPushedDown(FilterNode.class)
                     .matches("VALUES (1, CAST('argentina' AS varchar(25)), 1)");
             // Verify SUBSTRING(UPPER(...)) with IN predicate - fully pushed down
             assertThat(query(
@@ -2777,6 +2859,19 @@ final class TestTeradataConnectorTest
     public void testNativeQuerySimple()
     {
         assertQuery("SELECT * FROM TABLE(system.query(query => 'SELECT 1 AS val'))", "VALUES 1");
+    }
+
+    @Override
+    @Test
+    // Teradata validates DDL when the statement is prepared, so the driver raises a SQLException before
+    // BaseJdbcClient can inspect the (absent) ResultSetMetaData. The connector therefore reports
+    // "Failed to get table handle for prepared query" instead of the base "ResultSetMetaData not available" message.
+    public void testNativeQueryCreateStatement()
+    {
+        assertThat(getQueryRunner().tableExists(getSession(), "numbers")).isFalse();
+        assertThat(query("SELECT * FROM TABLE(system.query(query => 'CREATE TABLE numbers(n INTEGER)'))"))
+                .failure().hasMessageContaining("Failed to get table handle for prepared query");
+        assertThat(getQueryRunner().tableExists(getSession(), "numbers")).isFalse();
     }
 
     @Override
