@@ -1,0 +1,12 @@
+# Snyk (https://snyk.io) policy file
+# Applies to the GitHub SCM project for plugin/trino-exchange-hdfs/pom.xml only.
+# Permanent ownership-based ignores; expires is intentionally omitted.
+# Do not reuse this policy for plugin/trino-teradata or a repository-wide CLI scan.
+version: v1.25.0
+ignore:
+  SNYK-JAVA-JAKARTAVALIDATION-20936881:
+    - '* > jakarta.validation:jakarta.validation-api':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.

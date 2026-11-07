@@ -1,0 +1,168 @@
+# Snyk (https://snyk.io) policy file
+# Applies to the GitHub SCM project for testing/trino-benchto-benchmarks/pom.xml only.
+# Permanent ownership-based ignores; expires is intentionally omitted.
+# Do not reuse this policy for plugin/trino-teradata or a repository-wide CLI scan.
+version: v1.25.0
+ignore:
+  SNYK-JAVA-ORGFREEMARKER-19666421:
+    - '* > org.freemarker:freemarker':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-10176071:
+    - '* > org.springframework:spring-context':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-10345766:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-12008931:
+    - '* > org.springframework:spring-beans':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-12817817:
+    - '* > org.springframework:spring-core':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-15701755:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-16109615:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-16109618:
+    - '* > org.springframework:spring-core':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-17253311:
+    - '* > org.springframework:spring-expression':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-17253570:
+    - '* > org.springframework:spring-expression':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-17254051:
+    - '* > org.springframework:spring-core':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-17255245:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-18326606:
+    - '* > org.springframework:spring-expression':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267072:
+    - '* > org.springframework:spring-beans':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267073:
+    - '* > org.springframework:spring-expression':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267075:
+    - '* > org.springframework:spring-expression':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267076:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267077:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267078:
+    - '* > org.springframework:spring-web':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORK-19267438:
+    - '* > org.springframework:spring-context-support':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-16191022:
+    - '* > org.springframework.boot:spring-boot-autoconfigure':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-16191649:
+    - '* > org.springframework.boot:spring-boot':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-16198880:
+    - '* > org.springframework.boot:spring-boot':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-16200231:
+    - '* > org.springframework.boot:spring-boot-autoconfigure':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-16201011:
+    - '* > org.springframework.boot:spring-boot':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKBOOT-17308346:
+    - '* > org.springframework.boot:spring-boot-autoconfigure':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGSPRINGFRAMEWORKRETRY-17260993:
+    - '* > org.springframework.retry:spring-retry':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
