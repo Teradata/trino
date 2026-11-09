@@ -14,6 +14,8 @@
 package io.trino.plugin.teradata;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.io.Closer;
 import com.google.inject.Inject;
 import io.airlift.slice.Slice;
@@ -107,8 +109,6 @@ import io.trino.spi.type.TypeManager;
 import io.trino.spi.type.VarcharType;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
-import org.weakref.jmx.$internal.guava.collect.ImmutableMap;
-import org.weakref.jmx.$internal.guava.collect.ImmutableSet;
 
 import java.io.IOException;
 import java.sql.Array;
@@ -147,6 +147,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Throwables.throwIfInstanceOf;
 import static com.google.common.base.Verify.verify;
 import static com.google.common.collect.ImmutableList.toImmutableList;
 import static io.airlift.slice.Slices.utf8Slice;
@@ -224,8 +226,6 @@ import static java.util.Locale.ENGLISH;
 import static java.util.Objects.requireNonNull;
 import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toMap;
-import static org.weakref.jmx.$internal.guava.base.Preconditions.checkArgument;
-import static org.weakref.jmx.$internal.guava.base.Throwables.throwIfInstanceOf;
 
 public class TeradataClient
         extends BaseJdbcClient
@@ -1269,7 +1269,7 @@ public class TeradataClient
     {
         this.projectFunctionRewriter = new ProjectFunctionRewriter<>(
                 connectorExpressionRewriter,
-                com.google.common.collect.ImmutableSet.<ProjectFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
+                ImmutableSet.<ProjectFunctionRule<JdbcExpression, ParameterizedExpression>>builder()
                         .add(new RewriteLowerFunction())
                         .add(new RewriteUpperFunction())
                         .add(new RewriteCast((session, type) -> toWriteMapping(session, type).getDataType()))
