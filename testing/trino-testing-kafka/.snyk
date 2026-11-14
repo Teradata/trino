@@ -1,0 +1,54 @@
+# Snyk (https://snyk.io) policy file
+# Applies to the GitHub SCM project for testing/trino-testing-kafka/pom.xml only.
+# Permanent ownership-based ignores; expires is intentionally omitted.
+# Do not reuse this policy for plugin/trino-teradata or a repository-wide CLI scan.
+version: v1.25.0
+ignore:
+  SNYK-JAVA-COMGITHUBLUBEN-19653585:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659571:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659584:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659603:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659617:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778366:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778367:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778368:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
