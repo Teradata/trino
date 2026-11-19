@@ -16,6 +16,7 @@ package io.trino.plugin.teradata;
 import io.trino.plugin.jdbc.DefaultJdbcMetadata;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcQueryEventListener;
+import io.trino.plugin.jdbc.TimestampTimeZoneDomain;
 import io.trino.spi.connector.ConnectorSession;
 import io.trino.spi.connector.ConnectorViewDefinition;
 import io.trino.spi.connector.SaveMode;
@@ -36,10 +37,11 @@ public class TeradataMetadata
     public TeradataMetadata(
             JdbcClient jdbcClient,
             TeradataClient teradataClient,
+            TimestampTimeZoneDomain timestampTimeZoneDomain,
             boolean precalculateStatisticsForPushdown,
             Set<JdbcQueryEventListener> jdbcQueryEventListeners)
     {
-        super(jdbcClient, precalculateStatisticsForPushdown, jdbcQueryEventListeners);
+        super(jdbcClient, timestampTimeZoneDomain, precalculateStatisticsForPushdown, jdbcQueryEventListeners);
         this.teradataClient = requireNonNull(teradataClient, "teradataClient is null");
     }
 

@@ -21,6 +21,7 @@ import io.trino.plugin.jdbc.ForBaseJdbc;
 import io.trino.plugin.jdbc.JdbcClient;
 import io.trino.plugin.jdbc.JdbcMetadata;
 import io.trino.plugin.jdbc.JdbcQueryEventListener;
+import io.trino.plugin.jdbc.TimestampTimeZoneDomain;
 
 import java.util.Set;
 
@@ -30,17 +31,20 @@ public class TeradataMetadataFactory
         extends DefaultJdbcMetadataFactory
 {
     private final TeradataClient teradataClient;
+    private final TimestampTimeZoneDomain timestampTimeZoneDomain;
     private final Set<JdbcQueryEventListener> jdbcQueryEventListeners;
 
     @Inject
     public TeradataMetadataFactory(
             JdbcClient jdbcClient,
             @ForBaseJdbc JdbcClient baseJdbcClient,
+            TimestampTimeZoneDomain timestampTimeZoneDomain,
             Set<JdbcQueryEventListener> jdbcQueryEventListeners,
             IdentityCacheMapping identityCacheMapping)
     {
-        super(jdbcClient, jdbcQueryEventListeners, identityCacheMapping);
+        super(jdbcClient, timestampTimeZoneDomain, jdbcQueryEventListeners, identityCacheMapping);
         this.teradataClient = (TeradataClient) requireNonNull(baseJdbcClient, "baseJdbcClient is null");
+        this.timestampTimeZoneDomain = requireNonNull(timestampTimeZoneDomain, "timestampTimeZoneDomain is null");
         this.jdbcQueryEventListeners = ImmutableSet.copyOf(requireNonNull(jdbcQueryEventListeners, "jdbcQueryEventListeners is null"));
     }
 
@@ -50,6 +54,7 @@ public class TeradataMetadataFactory
         return new TeradataMetadata(
                 transactionCachingJdbcClient,
                 teradataClient,
+                timestampTimeZoneDomain,
                 true,
                 jdbcQueryEventListeners);
     }
