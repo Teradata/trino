@@ -1,0 +1,138 @@
+# Snyk (https://snyk.io) policy file
+# Applies to the GitHub SCM project for plugin/trino-ranger/pom.xml only.
+# Permanent ownership-based ignores; expires is intentionally omitted.
+# Do not reuse this policy for plugin/trino-teradata or a repository-wide CLI scan.
+version: v1.25.0
+ignore:
+  SNYK-JAVA-COMGITHUBLUBEN-19653585:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659571:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659584:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659603:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19659617:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778366:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778367:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMGITHUBLUBEN-19778368:
+    - '* > com.github.luben:zstd-jni':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMMONSLANG-10734077:
+    - '* > commons-lang:commons-lang':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMTDUNNING-19659413:
+    - '* > com.tdunning:t-digest':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-COMTDUNNING-19778375:
+    - '* > com.tdunning:t-digest':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-JAKARTAVALIDATION-20936881:
+    - '* > jakarta.validation:jakarta.validation-api':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-NETMINIDEV-21715438:
+    - '* > net.minidev:json-smart':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-16061843:
+    - '* > org.eclipse.jetty:jetty-http':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-19644207:
+    - '* > org.eclipse.jetty:jetty-http':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-21243499:
+    - '* > org.eclipse.jetty:jetty-client':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-21243510:
+    - '* > org.eclipse.jetty:jetty-client':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-21243528:
+    - '* > org.eclipse.jetty:jetty-client':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGECLIPSEJETTY-8186141:
+    - '* > org.eclipse.jetty:jetty-http':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGELASTICSEARCH-13517507:
+    - '* > org.elasticsearch:elasticsearch':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGELASTICSEARCH-14534841:
+    - '* > org.elasticsearch:elasticsearch':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JAVA-ORGELASTICSEARCH-20937083:
+    - '* > org.elasticsearch:elasticsearch':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
