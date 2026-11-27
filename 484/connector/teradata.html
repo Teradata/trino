@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+
+<html lang="en" data-content_root="../">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="x-ua-compatible" content="ie=edge">
+  <meta name="lang:clipboard.copy" content="Copy to clipboard">
+  <meta name="lang:clipboard.copied" content="Copied to clipboard">
+  <meta name="lang:search.language" content="en">
+  <meta name="lang:search.pipeline.stopwords" content="True">
+  <meta name="lang:search.pipeline.trimmer" content="True">
+  <meta name="lang:search.result.none" content="No matching documents">
+  <meta name="lang:search.result.one" content="1 matching document">
+  <meta name="lang:search.result.other" content="# matching documents">
+  <meta name="lang:search.tokenizer" content="[\s\-]+">
+
+  
+<!-- fonts loaded from trino.css -->
+
+
+  <link rel="stylesheet" href="../_static/stylesheets/application.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-palette.css"/>
+  <link rel="stylesheet" href="../_static/stylesheets/application-fixes.css"/>
+  
+<!-- material icons loaded from trino.css -->
+
+  <meta name="theme-color" content="2196f3">
+  <script src="../_static/javascripts/modernizr.js"></script>
+  
+  
+  
+    <title>Teradata connector &#8212; Teradata Trino 484 Documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=bbebba6e" />
+    <link rel="stylesheet" type="text/css" href="../_static/material.css?v=79c92029" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/trino.css?v=bb1a13b7" />
+    <script src="../_static/jquery.js?v=5d32c60e"></script>
+    <script src="../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+    <script src="../_static/documentation_options.js?v=18bdb0a6"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <link rel="canonical" href="https://trino.io/docs/current/connector/teradata.html" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Thrift connector" href="thrift.html" />
+    <link rel="prev" title="System connector" href="system.html" />
+  
+   
+
+  <style>.md-sidebar--primary,.md-header-nav__source{display:none!important}</style></head>
+  <body dir=ltr
+        data-md-color-primary= data-md-color-accent=>
+  
+  <svg class="md-svg">
+    <defs data-children-count="0">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
+      
+    </defs>
+  </svg>
+  
+  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
+  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
+  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
+  <a href="#connector/teradata" tabindex="1" class="md-skip"> Skip to content </a>
+  <header class="md-header" data-md-component="header">
+    <nav class="md-header-nav md-grid">
+        <div class="md-flex navheader">
+            <div class="md-flex__cell md-flex__cell--shrink">
+                <a href="../index.html" title="Teradata Trino 484 Documentation"
+                   class="md-header-nav__button md-logo">
+                    
+                    <!-- https://github.com/bashtage/sphinx-material/issues/136 -->
+                    <img src="../_static/trino.svg" height="26"
+                         alt="Teradata Trino 484 Documentation logo">
+                    
+                </a>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+                <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch">
+                <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+                    <span class="md-header-nav__topic">Teradata Trino 484 Documentation</span>
+                    <span class="md-header-nav__topic"> Teradata connector </span>
+                </div>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+                <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
+                
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" action="../search.html" method="get" name="search">
+      <input type="text" class="md-search__input" name="q" placeholder="Search"
+             autocapitalize="off" autocomplete="off" spellcheck="false"
+             data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="__search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+            </div>
+            
+            <div class="md-flex__cell md-flex__cell--shrink">
+                <div class="md-header-nav__source">
+                    <a href="https://github.com/trinodb/trino" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    Trino
+  </div>
+</a>
+                </div>
+            </div>
+            
+            
+  
+  <script src="../_static/javascripts/version_dropdown.js"></script>
+  <script>
+    var json_loc = "../../versions.json",
+        target_loc = "../../",
+        text = "Versions";
+    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
+  </script>
+  
+
+        </div>
+    </nav>
+</header>
+
+  
+  <div class="md-container">
+    
+    
+    <!-- empty -->
+    <main class="md-main">
+      <div class="md-main__inner md-grid" data-md-component="container">
+        
+          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                <nav class="md-nav md-nav--primary" data-md-level="0">
+    <label class="md-nav__title md-nav__title--site" for="__drawer">
+        <a href="../index.html" title="Teradata Trino 484 Documentation" class="md-nav__button md-logo">
+            
+            <img src="../_static/trino.svg" alt=" logo" width="48" height="48">
+            
+        </a>
+        <a href="../index.html"
+           title="Teradata Trino 484 Documentation">Teradata Trino 484 Documentation</a>
+    </label>
+    <div class="md-nav__source">
+        <a href="https://github.com/trinodb/trino" title="Go to repository" class="md-source" data-md-source="github">
+
+    <div class="md-source__icon">
+      <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" width="28" height="28">
+        <use xlink:href="#__github" width="24" height="24"></use>
+      </svg>
+    </div>
+  
+  <div class="md-source__repository">
+    Trino
+  </div>
+</a>
+    </div>
+    
+    
+
+  
+  <ul class="md-nav__list">
+    <li class="md-nav__item">
+    
+    
+      <a href="../overview.html" class="md-nav__link">Overview</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../installation.html" class="md-nav__link">Installation</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../client.html" class="md-nav__link">Clients</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../security.html" class="md-nav__link">Security</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../admin.html" class="md-nav__link">Administration</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../optimizer.html" class="md-nav__link">Query optimizer</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../connector.html" class="md-nav__link">Connectors</a>
+      <ul class="md-nav__list"> 
+    <li class="md-nav__item">
+    
+    
+      <a href="bigquery.html" class="md-nav__link">BigQuery</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="blackhole.html" class="md-nav__link">Black Hole</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="cassandra.html" class="md-nav__link">Cassandra</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="clickhouse.html" class="md-nav__link">ClickHouse</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="delta-lake.html" class="md-nav__link">Delta Lake</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="druid.html" class="md-nav__link">Druid</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="duckdb.html" class="md-nav__link">DuckDB</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="elasticsearch.html" class="md-nav__link">Elasticsearch</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="exasol.html" class="md-nav__link">Exasol</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="faker.html" class="md-nav__link">Faker</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="googlesheets.html" class="md-nav__link">Google Sheets</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="hive.html" class="md-nav__link">Hive</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="hudi.html" class="md-nav__link">Hudi</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="iceberg.html" class="md-nav__link">Iceberg</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="ignite.html" class="md-nav__link">Ignite</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="jmx.html" class="md-nav__link">JMX</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="kafka.html" class="md-nav__link">Kafka</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="lakehouse.html" class="md-nav__link">Lakehouse</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="loki.html" class="md-nav__link">Loki</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="mariadb.html" class="md-nav__link">MariaDB</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="memory.html" class="md-nav__link">Memory</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="mongodb.html" class="md-nav__link">MongoDB</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="mysql.html" class="md-nav__link">MySQL</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="opensearch.html" class="md-nav__link">OpenSearch</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="oracle.html" class="md-nav__link">Oracle</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="pinot.html" class="md-nav__link">Pinot</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="postgresql.html" class="md-nav__link">PostgreSQL</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="prometheus.html" class="md-nav__link">Prometheus</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="redis.html" class="md-nav__link">Redis</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="redshift.html" class="md-nav__link">Redshift</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="singlestore.html" class="md-nav__link">SingleStore</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="snowflake.html" class="md-nav__link">Snowflake</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="sqlserver.html" class="md-nav__link">SQL Server</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="system.html" class="md-nav__link">System</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="__toc">
+    <label class="md-nav__link md-nav__link--active" for="__toc"> Teradata </label>
+    
+      <a href="#" class="md-nav__link md-nav__link--active">Teradata</a>
+      
+        
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">Contents</label>
+    <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#requirements" class="md-nav__link">Requirements</a>
+        </li>
+        <li class="md-nav__item"><a href="#configuration" class="md-nav__link">Configuration</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#connection-security" class="md-nav__link">Connection security</a>
+        </li>
+        <li class="md-nav__item"><a href="#data-source-authentication" class="md-nav__link">Data source authentication</a>
+        </li>
+        <li class="md-nav__item"><a href="#multiple-teradata-databases" class="md-nav__link">Multiple Teradata databases</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#type-mapping" class="md-nav__link">Type mapping</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#teradata-type-to-trino-type-mapping" class="md-nav__link">Teradata type to Trino type mapping</a>
+        </li>
+        <li class="md-nav__item"><a href="#type-mapping-configuration-properties" class="md-nav__link">Type mapping configuration properties</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#querying-teradata" class="md-nav__link">Querying Teradata</a>
+        </li>
+        <li class="md-nav__item"><a href="#sql-support" class="md-nav__link">SQL support</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#non-transactional-merge" class="md-nav__link">Non-transactional MERGE</a>
+        </li>
+        <li class="md-nav__item"><a href="#view-management" class="md-nav__link">View management</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#view-storage" class="md-nav__link">View storage</a>
+        </li>
+        <li class="md-nav__item"><a href="#create-a-view" class="md-nav__link">Create a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#drop-a-view" class="md-nav__link">Drop a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#rename-a-view" class="md-nav__link">Rename a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#show-the-view-definition" class="md-nav__link">Show the view definition</a>
+        </li>
+        <li class="md-nav__item"><a href="#comment-on-a-view-or-view-column" class="md-nav__link">Comment on a view or view column</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#procedures" class="md-nav__link">Procedures</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#system-flush-metadata-cache" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">system.flush_metadata_cache()</span></code></a>
+        </li>
+        <li class="md-nav__item"><a href="#system-execute-query" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">system.execute('query')</span></code></a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#table-functions" class="md-nav__link">Table functions</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#query-varchar-table" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">query(varchar)</span> <span class="pre">-&gt;</span> <span class="pre">table</span></code></a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#performance" class="md-nav__link">Performance</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#table-statistics" class="md-nav__link">Table statistics</a>
+        </li>
+        <li class="md-nav__item"><a href="#pushdown" class="md-nav__link">Pushdown</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#cost-based-join-pushdown" class="md-nav__link">Cost-based join pushdown</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#predicate-pushdown-support" class="md-nav__link">Predicate pushdown support</a>
+        </li></ul>
+            </nav>
+        </li>
+    </ul>
+</nav>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="thrift.html" class="md-nav__link">Thrift</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="tpcds.html" class="md-nav__link">TPC-DS</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="tpch.html" class="md-nav__link">TPC-H</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="removed.html" class="md-nav__link">404 - Connector removed</a>
+      
+    
+    </li></ul>
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../object-storage.html" class="md-nav__link">Object storage</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../functions.html" class="md-nav__link">Functions and operators</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../udf.html" class="md-nav__link">User-defined functions</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../language.html" class="md-nav__link">SQL language</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../sql.html" class="md-nav__link">SQL statement syntax</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../develop.html" class="md-nav__link">Developer guide</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../glossary.html" class="md-nav__link">Glossary</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../appendix.html" class="md-nav__link">Appendix</a>
+      
+    
+    </li>
+    <li class="md-nav__item">
+    
+    
+      <a href="../release.html" class="md-nav__link">Release notes</a>
+      
+    
+    </li>
+  </ul>
+  
+
+</nav>
+              </div>
+            </div>
+          </div>
+          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+            <div class="md-sidebar__scrollwrap">
+              <div class="md-sidebar__inner">
+                
+<nav class="md-nav md-nav--secondary">
+    <label class="md-nav__title" for="__toc">Contents</label>
+    <ul class="md-nav__list" data-md-scrollfix="">
+        <li class="md-nav__item"><a href="#requirements" class="md-nav__link">Requirements</a>
+        </li>
+        <li class="md-nav__item"><a href="#configuration" class="md-nav__link">Configuration</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#connection-security" class="md-nav__link">Connection security</a>
+        </li>
+        <li class="md-nav__item"><a href="#data-source-authentication" class="md-nav__link">Data source authentication</a>
+        </li>
+        <li class="md-nav__item"><a href="#multiple-teradata-databases" class="md-nav__link">Multiple Teradata databases</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#type-mapping" class="md-nav__link">Type mapping</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#teradata-type-to-trino-type-mapping" class="md-nav__link">Teradata type to Trino type mapping</a>
+        </li>
+        <li class="md-nav__item"><a href="#type-mapping-configuration-properties" class="md-nav__link">Type mapping configuration properties</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#querying-teradata" class="md-nav__link">Querying Teradata</a>
+        </li>
+        <li class="md-nav__item"><a href="#sql-support" class="md-nav__link">SQL support</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#non-transactional-merge" class="md-nav__link">Non-transactional MERGE</a>
+        </li>
+        <li class="md-nav__item"><a href="#view-management" class="md-nav__link">View management</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#view-storage" class="md-nav__link">View storage</a>
+        </li>
+        <li class="md-nav__item"><a href="#create-a-view" class="md-nav__link">Create a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#drop-a-view" class="md-nav__link">Drop a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#rename-a-view" class="md-nav__link">Rename a view</a>
+        </li>
+        <li class="md-nav__item"><a href="#show-the-view-definition" class="md-nav__link">Show the view definition</a>
+        </li>
+        <li class="md-nav__item"><a href="#comment-on-a-view-or-view-column" class="md-nav__link">Comment on a view or view column</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#procedures" class="md-nav__link">Procedures</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#system-flush-metadata-cache" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">system.flush_metadata_cache()</span></code></a>
+        </li>
+        <li class="md-nav__item"><a href="#system-execute-query" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">system.execute('query')</span></code></a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#table-functions" class="md-nav__link">Table functions</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#query-varchar-table" class="md-nav__link"><code class="docutils literal notranslate"><span class="pre">query(varchar)</span> <span class="pre">-&gt;</span> <span class="pre">table</span></code></a>
+        </li></ul>
+            </nav>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#performance" class="md-nav__link">Performance</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#table-statistics" class="md-nav__link">Table statistics</a>
+        </li>
+        <li class="md-nav__item"><a href="#pushdown" class="md-nav__link">Pushdown</a><nav class="md-nav">
+                <ul class="md-nav__list">
+        <li class="md-nav__item"><a href="#cost-based-join-pushdown" class="md-nav__link">Cost-based join pushdown</a>
+        </li></ul>
+            </nav>
+        </li>
+        <li class="md-nav__item"><a href="#predicate-pushdown-support" class="md-nav__link">Predicate pushdown support</a>
+        </li></ul>
+            </nav>
+        </li>
+    </ul>
+</nav>
+              </div>
+            </div>
+          </div>
+        
+        <div class="md-content">
+          <article class="md-content__inner md-typeset" role="main">
+            
+  <section id="teradata-connector">
+<h1 id="connector-teradata--page-root">Teradata connector<a class="headerlink" href="#connector-teradata--page-root" title="Link to this heading">#</a></h1>
+<img class="connector-logo" src="../_static/img/teradata.png"/><p>The Teradata connector allows querying and creating tables in an external
+Teradata database.
+This can be used to join data between different systems like Teradata and Hive,
+or between different Teradata instances.</p>
+<section id="requirements">
+<h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Link to this heading">#</a></h2>
+<p>To connect to Teradata, you need:</p>
+<ul class="simple">
+<li><p>Teradata Database</p></li>
+<li><p>Network access from the Trino coordinator and workers to Teradata. Port 1025
+is the default port</p></li>
+</ul>
+</section>
+<section id="configuration">
+<h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Link to this heading">#</a></h2>
+<p>To configure the Teradata connector, create a catalog properties file in
+<code class="docutils literal notranslate"><span class="pre">etc/catalog</span></code> named, for example, <code class="docutils literal notranslate"><span class="pre">teradata.properties</span></code>, to mount the Teradata
+connector as the <code class="docutils literal notranslate"><span class="pre">teradata</span></code>
+catalog. Create the file with the following contents, replacing the connection
+properties as appropriate for your setup:</p>
+<div class="highlight-properties notranslate"><div class="highlight"><pre><span></span><span class="na">connector.name</span><span class="o">=</span><span class="s">teradata</span>
+<span class="na">connection-url</span><span class="o">=</span><span class="s">jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGMECH=TD2</span>
+<span class="na">connection-user</span><span class="o">=</span><span class="s">***</span>
+<span class="na">connection-password</span><span class="o">=</span><span class="s">***</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">connection-url</span></code> defines the connection information and parameters to pass
+to the Teradata JDBC driver. The supported parameters for the URL are available
+in
+the <a class="reference external" href="https://teradata-docs.s3.amazonaws.com/doc/connectivity/jdbc/reference/current/jdbcug_chapter_2.html#BABJIHBJ">Teradata JDBC documentation</a>.</p>
+<p>For example, the following <code class="docutils literal notranslate"><span class="pre">connection-url</span></code> configures character encoding,
+transaction mode, and authentication.</p>
+<div class="highlight-properties notranslate"><div class="highlight"><pre><span></span><span class="na">connection-url</span><span class="o">=</span><span class="s">jdbc:teradata://example.teradata.com/CHARSET=UTF8,TMODE=ANSI,LOGMECH=TD2</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">connection-user</span></code> and <code class="docutils literal notranslate"><span class="pre">connection-password</span></code> are typically required and
+determine the user credentials for the connection, often a service user.</p>
+<section id="connection-security">
+<h3 id="connection-security">Connection security<a class="headerlink" href="#connection-security" title="Link to this heading">#</a></h3>
+<p>If you have TLS configured with a globally-trusted certificate installed on your
+data source, you can enable TLS between your cluster and the data source by
+appending parameters to
+the JDBC connection string set in the connection-url catalog configuration
+property.</p>
+<p>For example, to specify SSLMODE:</p>
+<div class="highlight-properties notranslate"><div class="highlight"><pre><span></span><span class="na">connection-url</span><span class="o">=</span><span class="s">jdbc:teradata://example.teradata.com/SSLMODE=REQUIRED</span>
+</pre></div>
+</div>
+<p>For more information on TLS configuration options, see the
+Teradata <a class="reference external" href="https://teradata-docs.s3.amazonaws.com/doc/connectivity/jdbc/reference/current/jdbcug_chapter_2.html#URL_SSLMODE_">JDBC documentation</a>.</p>
+</section>
+<section id="data-source-authentication">
+<h3 id="data-source-authentication">Data source authentication<a class="headerlink" href="#data-source-authentication" title="Link to this heading">#</a></h3>
+<p>The connector can provide credentials for the data source connection
+in multiple ways:</p>
+<ul class="simple">
+<li><p>inline, in the connector configuration file</p></li>
+<li><p>in a separate properties file</p></li>
+<li><p>in a key store file</p></li>
+<li><p>as extra credentials set when connecting to Trino</p></li>
+</ul>
+<p>You can use <a class="reference internal" href="../security/secrets.html"><span class="doc">secrets</span></a> to avoid storing sensitive
+values in the catalog properties files.</p>
+<p>The following table describes configuration properties
+for connection credentials:</p>
+<table>
+<colgroup>
+<col style="width: 40%"/>
+<col style="width: 60%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">credential-provider.type</span></code></p></td>
+<td><p>Type of the credential provider. Must be one of <code class="docutils literal notranslate"><span class="pre">INLINE</span></code>, <code class="docutils literal notranslate"><span class="pre">FILE</span></code>, or
+<code class="docutils literal notranslate"><span class="pre">KEYSTORE</span></code>; defaults to <code class="docutils literal notranslate"><span class="pre">INLINE</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">connection-user</span></code></p></td>
+<td><p>Connection user name.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">connection-password</span></code></p></td>
+<td><p>Connection password.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">user-credential-name</span></code></p></td>
+<td><p>Name of the extra credentials property, whose value to use as the user
+name. See <code class="docutils literal notranslate"><span class="pre">extraCredentials</span></code> in <a class="reference internal" href="../client/jdbc.html#jdbc-parameter-reference"><span class="std std-ref">Parameter
+reference</span></a>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">password-credential-name</span></code></p></td>
+<td><p>Name of the extra credentials property, whose value to use as the
+password.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">connection-credential-file</span></code></p></td>
+<td><p>Location of the properties file where credentials are present. It must
+contain the <code class="docutils literal notranslate"><span class="pre">connection-user</span></code> and <code class="docutils literal notranslate"><span class="pre">connection-password</span></code> properties.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-file-path</span></code></p></td>
+<td><p>The location of the Java Keystore file, from which to read credentials.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-type</span></code></p></td>
+<td><p>File format of the keystore file, for example <code class="docutils literal notranslate"><span class="pre">JKS</span></code> or <code class="docutils literal notranslate"><span class="pre">PEM</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-password</span></code></p></td>
+<td><p>Password for the key store.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-user-credential-name</span></code></p></td>
+<td><p>Name of the key store entity to use as the user name.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-user-credential-password</span></code></p></td>
+<td><p>Password for the user name key store entity.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-password-credential-name</span></code></p></td>
+<td><p>Name of the key store entity to use as the password.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">keystore-password-credential-password</span></code></p></td>
+<td><p>Password for the password key store entity.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="multiple-teradata-databases">
+<h3 id="multiple-teradata-databases">Multiple Teradata databases<a class="headerlink" href="#multiple-teradata-databases" title="Link to this heading">#</a></h3>
+<p>You can have as many catalogs as you need, so if you have additional Teradata
+databases, simply add another properties file to etc/catalog with a different
+name, making sure it
+ends in .properties. For example, if you name the property file
+sales.properties, Trino creates a catalog named sales using the configured
+connector.</p>
+</section>
+</section>
+<section id="type-mapping">
+<h2 id="type-mapping">Type mapping<a class="headerlink" href="#type-mapping" title="Link to this heading">#</a></h2>
+<p>Because Trino and Teradata each support types that the other does not, this
+connector <a class="reference internal" href="../language/types.html#type-mapping-overview"><span class="std std-ref">modifies some types</span></a> when reading data.
+Refer to the following sections for type mapping in when reading data from
+Teradata
+to Trino.</p>
+<section id="teradata-type-to-trino-type-mapping">
+<h3 id="teradata-type-to-trino-type-mapping">Teradata type to Trino type mapping<a class="headerlink" href="#teradata-type-to-trino-type-mapping" title="Link to this heading">#</a></h3>
+<p>The connector maps Teradata types to the corresponding Trino types following
+this table:</p>
+<table id="id1">
+<caption><span class="caption-text">Teradata type to Trino type mapping</span><a class="headerlink" href="#id1" title="Link to this table">#</a></caption>
+<colgroup>
+<col style="width: 30%"/>
+<col style="width: 30%"/>
+<col style="width: 40%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Teradata type</p></th>
+<th class="head"><p>Trino type</p></th>
+<th class="head"><p>Notes</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TINYINT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TINYINT</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">SMALLINT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">SMALLINT</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">INTEGER</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">INTEGER</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BIGINT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">BIGINT</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">REAL</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DOUBLE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DOUBLE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DOUBLE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">FLOAT</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DOUBLE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">NUMBER(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code> is an alias of <code class="docutils literal notranslate"><span class="pre">NUMERIC(p,</span> <span class="pre">s)</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">NUMERIC(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code> is an alias of <code class="docutils literal notranslate"><span class="pre">NUMERIC(p,</span> <span class="pre">s)</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DECIMAL(p,</span> <span class="pre">s)</span></code> is an alias of <code class="docutils literal notranslate"><span class="pre">NUMERIC(p,</span> <span class="pre">s)</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">CHAR(n)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CHAR(n)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">CHARACTER(n)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">CHAR(n)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">VARCHAR(n)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VARCHAR(n)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BINARY</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VARBINARY</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">VARBINARY</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VARBINARY</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">BLOB</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">VARBINARY</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">DATE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">DATE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TIME(n)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TIME(n)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TIMESTAMP(n)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TIMESTAMP(n)</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">TIMESTAMP(n)</span> <span class="pre">WITH</span> <span class="pre">TIME</span> <span class="pre">ZONE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TIMESTAMP(n)</span> <span class="pre">WITH</span> <span class="pre">TIME</span> <span class="pre">ZONE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">TIME(n)</span> <span class="pre">WITH</span> <span class="pre">TIME</span> <span class="pre">ZONE</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">TIME(n)</span> <span class="pre">WITH</span> <span class="pre">TIME</span> <span class="pre">ZONE</span></code></p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">JSON</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">JSON</span></code></p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p>No other types are supported.</p>
+</section>
+<section id="type-mapping-configuration-properties">
+<h3 id="type-mapping-configuration-properties">Type mapping configuration properties<a class="headerlink" href="#type-mapping-configuration-properties" title="Link to this heading">#</a></h3>
+<p>The following properties can be used to configure how data types from the
+connected data source are mapped to Trino data types and how the metadata is
+cached in Trino.</p>
+<table>
+<colgroup>
+<col style="width: 30%"/>
+<col style="width: 40%"/>
+<col style="width: 30%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Default value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">unsupported-type-handling</span></code></p></td>
+<td><p>Configure how unsupported column data types are handled:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">IGNORE</span></code>, column is not accessible.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">CONVERT_TO_VARCHAR</span></code>, column is converted to unbounded <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code>.</p></li>
+</ul>
+<p>The respective catalog session property is <code class="docutils literal notranslate"><span class="pre">unsupported_type_handling</span></code>.</p>
+</td>
+<td><p><code class="docutils literal notranslate"><span class="pre">IGNORE</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">jdbc-types-mapped-to-varchar</span></code></p></td>
+<td><p>Allow forced mapping of comma separated lists of data types to convert to
+unbounded <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code></p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="querying-teradata">
+<h2 id="querying-teradata">Querying Teradata<a class="headerlink" href="#querying-teradata" title="Link to this heading">#</a></h2>
+<p>The Teradata connector provides a schema for every Teradata database. You can
+see the available Teradata databases by running SHOW SCHEMAS:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SHOW</span><span class="w"> </span><span class="n">SCHEMAS</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">teradata</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>If you have a Teradata database named sales, you can view the tables in this
+database by running SHOW TABLES:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SHOW</span><span class="w"> </span><span class="n">TABLES</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">teradata</span><span class="p">.</span><span class="n">sales</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>You can see a list of the columns in the orders table in the sales database
+using either of the following:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">DESCRIBE</span><span class="w"> </span><span class="n">teradata</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">orders</span><span class="p">;</span>
+<span class="k">SHOW</span><span class="w"> </span><span class="n">COLUMNS</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">teradata</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">orders</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Finally, you can access the orders table in the sales database:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">teradata</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">orders</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="sql-support">
+<h2 id="sql-support">SQL support<a class="headerlink" href="#sql-support" title="Link to this heading">#</a></h2>
+<p>The connector provides read access to data and metadata in the Teradata
+database. In addition to
+the <a class="reference external" href="https://trino.io/docs/current/language/sql-support.html#globally-available-statements">globally available</a>
+and <a class="reference external" href="https://trino.io/docs/current/language/sql-support.html#read-operations">read operation</a>
+statements, the connector supports the following features:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../sql/create-schema.html"><span class="doc std std-doc">CREATE SCHEMA</span></a></p></li>
+<li><p><a class="reference internal" href="../sql/create-table.html"><span class="doc std std-doc">CREATE TABLE</span></a></p></li>
+<li><p><a class="reference internal" href="../sql/create-table-as.html"><span class="doc std std-doc">CREATE TABLE AS</span></a></p></li>
+<li><p><a class="reference internal" href="../sql/drop-table.html"><span class="doc std std-doc">DROP TABLE</span></a></p></li>
+<li><p><a class="reference internal" href="../sql/drop-schema.html"><span class="doc std std-doc">DROP SCHEMA</span></a></p></li>
+<li><p><a class="reference internal" href="../language/sql-support.html#sql-schema-table-management"><span class="std std-ref">Schema and table management</span></a></p></li>
+<li><p><a class="reference internal" href="../language/sql-support.html#sql-view-management"><span class="std std-ref">View management</span></a>, see details for <a class="reference internal" href="#teradata-view-management"><span class="std std-ref">View management</span></a></p></li>
+<li><p><a class="reference internal" href="../sql/merge.html"><span class="doc std std-doc">MERGE</span></a>, see also <a class="reference internal" href="#teradata-merge"><span class="std std-ref">Non-transactional MERGE</span></a></p></li>
+<li><p><a class="reference internal" href="#teradata-procedures"><span class="std std-ref">Procedures</span></a></p></li>
+<li><p><a class="reference internal" href="#teradata-table-functions"><span class="std std-ref">Table functions</span></a></p></li>
+</ul>
+<section id="non-transactional-merge">
+<span id="teradata-merge"></span><h3 id="non-transactional-merge">Non-transactional MERGE<a class="headerlink" href="#non-transactional-merge" title="Link to this heading">#</a></h3>
+<p>The connector supports adding, updating, and deleting rows using <a class="reference internal" href="../sql/merge.html"><span class="doc std std-doc">MERGE
+statements</span></a>, if the <code class="docutils literal notranslate"><span class="pre">merge.non-transactional-merge.enabled</span></code> catalog
+property or the corresponding <code class="docutils literal notranslate"><span class="pre">non_transactional_merge_enabled</span></code> catalog session
+property is set to <code class="docutils literal notranslate"><span class="pre">true</span></code>. Merge is only supported for directly modifying target
+tables.</p>
+<p>In rare cases, exceptions may occur during the merge operation, potentially
+resulting in a partial update.</p>
+</section>
+<section id="view-management">
+<span id="teradata-view-management"></span><h3 id="view-management">View management<a class="headerlink" href="#view-management" title="Link to this heading">#</a></h3>
+<p>The connector fully supports Trino <a class="reference internal" href="../language/sql-support.html#sql-view-management"><span class="std std-ref">view management</span></a>
+for Teradata views.</p>
+<section id="view-storage">
+<span id="teradata-view-storage"></span><h4 id="view-storage">View storage<a class="headerlink" href="#view-storage" title="Link to this heading">#</a></h4>
+<p>Trino views are not stored as native Teradata views. Instead, view definitions
+are stored as rows in a metadata table called <code class="docutils literal notranslate"><span class="pre">trino_views</span></code> inside a dedicated
+Teradata database. The default metadata database is <code class="docutils literal notranslate"><span class="pre">trino_metadata</span></code>, which
+Trino creates automatically on first use.</p>
+<p>You can change the metadata database using the <code class="docutils literal notranslate"><span class="pre">teradata.view-metadata-schema</span></code>
+catalog configuration property:</p>
+<div class="highlight-properties notranslate"><div class="highlight"><pre><span></span><span class="na">teradata.view-metadata-schema</span><span class="o">=</span><span class="s">my_trino_metadata</span>
+</pre></div>
+</div>
+<p>The Teradata user specified in <code class="docutils literal notranslate"><span class="pre">connection-user</span></code> must have privileges to create
+databases and tables in the metadata database. The <code class="docutils literal notranslate"><span class="pre">trino_views</span></code> table has the
+following structure:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">catalog_name</span><span class="p">,</span><span class="w"> </span><span class="k">schema_name</span><span class="p">,</span><span class="w"> </span><span class="n">view_name</span><span class="p">,</span><span class="w"> </span><span class="n">original_sql</span><span class="p">,</span>
+<span class="n">view_owner</span><span class="p">,</span><span class="w"> </span><span class="n">run_as_invoker</span><span class="p">,</span><span class="w"> </span><span class="n">columns_data</span><span class="p">,</span><span class="w"> </span><span class="n">view_comment</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Because view definitions are stored in a Trino-managed table rather than
+Teradata’s native view catalog, Teradata tools such as BTEQ or Teradata Studio
+will not show these views as native database objects.</p>
+</div>
+</section>
+<section id="create-a-view">
+<span id="teradata-create-view"></span><h4 id="create-a-view">Create a view<a class="headerlink" href="#create-a-view" title="Link to this heading">#</a></h4>
+<p>Use <a class="reference internal" href="../sql/create-view.html"><span class="doc">CREATE VIEW</span></a> to create a view. Trino maps <code class="docutils literal notranslate"><span class="pre">CREATE</span> <span class="pre">OR</span> <span class="pre">REPLACE</span> <span class="pre">VIEW</span></code> to Teradata’s native <code class="docutils literal notranslate"><span class="pre">REPLACE</span> <span class="pre">VIEW</span></code> syntax so that existing views are
+replaced without error:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">CREATE</span><span class="w"> </span><span class="k">OR</span><span class="w"> </span><span class="k">REPLACE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_by_region</span><span class="w"> </span><span class="k">AS</span>
+<span class="k">SELECT</span>
+<span class="w">    </span><span class="n">region</span><span class="p">,</span>
+<span class="w">    </span><span class="k">sum</span><span class="p">(</span><span class="n">amount</span><span class="p">)</span><span class="w"> </span><span class="k">AS</span><span class="w"> </span><span class="n">total</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">orders</span>
+<span class="k">GROUP</span><span class="w"> </span><span class="k">BY</span><span class="w"> </span><span class="n">region</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="drop-a-view">
+<span id="teradata-drop-view"></span><h4 id="drop-a-view">Drop a view<a class="headerlink" href="#drop-a-view" title="Link to this heading">#</a></h4>
+<p>Use <a class="reference internal" href="../sql/drop-view.html"><span class="doc">DROP VIEW</span></a>:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">DROP</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_by_region</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="rename-a-view">
+<span id="teradata-alter-view"></span><h4 id="rename-a-view">Rename a view<a class="headerlink" href="#rename-a-view" title="Link to this heading">#</a></h4>
+<p>Use <a class="reference internal" href="../sql/alter-view.html"><span class="doc">ALTER VIEW</span></a> to rename a view:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">ALTER</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_by_region</span><span class="w"> </span><span class="k">RENAME</span><span class="w"> </span><span class="k">TO</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_summary</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="show-the-view-definition">
+<span id="teradata-show-create-view"></span><h4 id="show-the-view-definition">Show the view definition<a class="headerlink" href="#show-the-view-definition" title="Link to this heading">#</a></h4>
+<p>Use <a class="reference internal" href="../sql/show-create-view.html"><span class="doc">SHOW CREATE VIEW</span></a> to display the SQL that defines a view:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SHOW</span><span class="w"> </span><span class="k">CREATE</span><span class="w"> </span><span class="k">VIEW</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_summary</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+<section id="comment-on-a-view-or-view-column">
+<span id="teradata-comment-view"></span><h4 id="comment-on-a-view-or-view-column">Comment on a view or view column<a class="headerlink" href="#comment-on-a-view-or-view-column" title="Link to this heading">#</a></h4>
+<p>Use the <a class="reference internal" href="../sql/comment.html"><span class="doc">COMMENT</span></a> statement to set or clear comments on views and
+view columns:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Set a comment on the view</span>
+<span class="k">COMMENT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_summary</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="s1">'Aggregated revenue per region'</span><span class="p">;</span>
+
+<span class="c1">-- Set a comment on a view column</span>
+<span class="k">COMMENT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_summary</span><span class="p">.</span><span class="n">total</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="s1">'Sum of order amounts'</span><span class="p">;</span>
+
+<span class="c1">-- Remove a comment</span>
+<span class="k">COMMENT</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="k">TABLE</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">sales</span><span class="p">.</span><span class="n">revenue_summary</span><span class="w"> </span><span class="k">IS</span><span class="w"> </span><span class="k">NULL</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="procedures">
+<span id="teradata-procedures"></span><h3 id="procedures">Procedures<a class="headerlink" href="#procedures" title="Link to this heading">#</a></h3>
+<section id="system-flush-metadata-cache">
+<h4 id="system-flush-metadata-cache"><code class="docutils literal notranslate"><span class="pre">system.flush_metadata_cache()</span></code><a class="headerlink" href="#system-flush-metadata-cache" title="Link to this heading">#</a></h4>
+<p>Flush JDBC metadata caches. For example, the following system call
+flushes the metadata caches for all schemas in the <code class="docutils literal notranslate"><span class="pre">example</span></code> catalog</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="n">USE</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">example_schema</span><span class="p">;</span>
+<span class="k">CALL</span><span class="w"> </span><span class="k">system</span><span class="p">.</span><span class="n">flush_metadata_cache</span><span class="p">();</span>
+</pre></div>
+</div>
+</section>
+<section id="system-execute-query">
+<h4 id="system-execute-query"><code class="docutils literal notranslate"><span class="pre">system.execute('query')</span></code><a class="headerlink" href="#system-execute-query" title="Link to this heading">#</a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">execute</span></code> procedure allows you to execute a query in the underlying data
+source directly. The query must use supported syntax of the connected data
+source. Use the procedure to access features which are not available in Trino
+or to execute queries that return no result set and therefore can not be used
+with the <code class="docutils literal notranslate"><span class="pre">query</span></code> or <code class="docutils literal notranslate"><span class="pre">raw_query</span></code> pass-through table function. Typical use cases
+are statements that create or alter objects, and require native feature such
+as constraints, default values, automatic identifier creation, or indexes.
+Queries can also invoke statements that insert, update, or delete data, and do
+not return any data as a result.</p>
+<p>The query text is not parsed by Trino, only passed through, and therefore only
+subject to any security or access control of the underlying data source.</p>
+<p>The following example sets the current database to the <code class="docutils literal notranslate"><span class="pre">example_schema</span></code> of the
+<code class="docutils literal notranslate"><span class="pre">example</span></code> catalog. Then it calls the procedure in that schema to drop the
+default value from <code class="docutils literal notranslate"><span class="pre">your_column</span></code> on <code class="docutils literal notranslate"><span class="pre">your_table</span></code> table using the standard SQL
+syntax in the parameter value assigned for <code class="docutils literal notranslate"><span class="pre">query</span></code>:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="n">USE</span><span class="w"> </span><span class="n">example</span><span class="p">.</span><span class="n">example_schema</span><span class="p">;</span>
+<span class="k">CALL</span><span class="w"> </span><span class="k">system</span><span class="p">.</span><span class="k">execute</span><span class="p">(</span><span class="n">query</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'ALTER TABLE your_table ALTER COLUMN your_column DROP DEFAULT'</span><span class="p">);</span>
+</pre></div>
+</div>
+<p>Verify that the specific database supports this syntax, and adapt as necessary
+based on the documentation for the specific connected database and database
+version.</p>
+</section>
+</section>
+<section id="table-functions">
+<span id="teradata-table-functions"></span><h3 id="table-functions">Table functions<a class="headerlink" href="#table-functions" title="Link to this heading">#</a></h3>
+<p>The connector provides specific <a class="reference internal" href="../functions/table.html"><span class="doc">table functions</span></a> to
+access Teradata.</p>
+<section id="query-varchar-table">
+<span id="teradata-query-function"></span><h4 id="query-varchar-table"><code class="docutils literal notranslate"><span class="pre">query(varchar)</span> <span class="pre">-&gt;</span> <span class="pre">table</span></code><a class="headerlink" href="#query-varchar-table" title="Link to this heading">#</a></h4>
+<p>The <code class="docutils literal notranslate"><span class="pre">query</span></code> function allows you to query the underlying database directly. It
+requires syntax native to Teradata, because the full query is pushed down and
+processed in Teradata. This can be useful for accessing native features which
+are not available in Trino or for improving query performance in situations
+where running a query natively may be faster.</p>
+<p>The native query passed to the underlying data source is required to return a
+table as a result set. Only the data source performs validation or security
+checks for these queries using its own configuration. Trino does not perform
+these tasks. Only use passthrough queries to read data.</p>
+<p>As a simple example, query the <code class="docutils literal notranslate"><span class="pre">example</span></code> catalog and select an entire table:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span>
+<span class="w">  </span><span class="o">*</span>
+<span class="k">FROM</span>
+<span class="w">  </span><span class="k">TABLE</span><span class="p">(</span>
+<span class="w">    </span><span class="n">example</span><span class="p">.</span><span class="k">system</span><span class="p">.</span><span class="n">query</span><span class="p">(</span>
+<span class="w">      </span><span class="n">query</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'SELECT</span>
+<span class="s1">        *</span>
+<span class="s1">      FROM</span>
+<span class="s1">        tpch.nation'</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">  </span><span class="p">);</span>
+</pre></div>
+</div>
+<p>As a practical example, you can leverage Teradata-specific syntax such as the
+<code class="docutils literal notranslate"><span class="pre">QUALIFY</span></code> clause for window function filtering:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="k">SELECT</span>
+<span class="w">  </span><span class="o">*</span>
+<span class="k">FROM</span>
+<span class="w">  </span><span class="k">TABLE</span><span class="p">(</span>
+<span class="w">    </span><span class="n">example</span><span class="p">.</span><span class="k">system</span><span class="p">.</span><span class="n">query</span><span class="p">(</span>
+<span class="w">      </span><span class="n">query</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'SELECT</span>
+<span class="s1">        name,</span>
+<span class="s1">        salary,</span>
+<span class="s1">        RANK() OVER (ORDER BY salary DESC) AS rnk</span>
+<span class="s1">      FROM</span>
+<span class="s1">        mydb.employees</span>
+<span class="s1">      QUALIFY rnk &lt;= 10'</span>
+<span class="w">    </span><span class="p">)</span>
+<span class="w">  </span><span class="p">);</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The query engine does not preserve the order of the results of this
+function. If the passed query contains an <code class="docutils literal notranslate"><span class="pre">ORDER</span> <span class="pre">BY</span></code> clause, the
+function result may not be ordered as expected.</p>
+</div>
+</section>
+</section>
+</section>
+<section id="performance">
+<h2 id="performance">Performance<a class="headerlink" href="#performance" title="Link to this heading">#</a></h2>
+<p>The connector includes a number of performance improvements, detailed in the
+following sections.</p>
+<section id="table-statistics">
+<h3 id="table-statistics">Table statistics<a class="headerlink" href="#table-statistics" title="Link to this heading">#</a></h3>
+<p>The Teradata connector can
+use <a class="reference external" href="https://trino.io/docs/current/optimizer/statistics.html">table and column statistics</a>
+for <a class="reference external" href="https://trino.io/docs/current/optimizer/cost-based-optimizations.html">cost based optimizations</a>,
+to improve query processing performance based on the actual data in the data
+source.
+The statistics are collected by Teradata and retrieved by the connector. The
+table and column statistics are based on Teradata’s Data Dictionary views.</p>
+<p>You can update statistics in Teradata by running:</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="n">COLLECT</span><span class="w"> </span><span class="k">STATISTICS</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="p">(</span><span class="n">regionkey</span><span class="p">),</span><span class="w"> </span><span class="k">COLUMN</span><span class="w"> </span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="w"> </span><span class="k">ON</span><span class="w"> </span><span class="n">trino_test_teradatajdbcconnect</span><span class="p">.</span><span class="n">nation</span><span class="p">;</span>
+</pre></div>
+</div>
+<p>Please refer
+to <a class="reference external" href="https://docs.teradata.com/r/Enterprise_IntelliFlex_VMware/SQL-Data-Definition-Language-Syntax-and-Examples/Statistics-Statements">Statistics</a>
+for more information
+on Table Statistics.</p>
+</section>
+<section id="pushdown">
+<h3 id="pushdown">Pushdown<a class="headerlink" href="#pushdown" title="Link to this heading">#</a></h3>
+<p>The connector supports pushdown for a number of operations:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../optimizer/pushdown.html#join-pushdown"><span class="std std-ref">Join pushdown</span></a></p></li>
+<li><p><a class="reference internal" href="../optimizer/pushdown.html#limit-pushdown"><span class="std std-ref">Limit pushdown</span></a></p></li>
+<li><p><a class="reference internal" href="../optimizer/pushdown.html#topn-pushdown"><span class="std std-ref">Top-N pushdown</span></a></p></li>
+</ul>
+<p><a class="reference internal" href="../optimizer/pushdown.html#aggregation-pushdown"><span class="std std-ref">Aggregate pushdown</span></a> for the following functions:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../functions/aggregate.html#avg" title="avg"><code class="xref py py-func docutils literal notranslate"><span class="pre">avg()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#count" title="count"><code class="xref py py-func docutils literal notranslate"><span class="pre">count()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#max" title="max"><code class="xref py py-func docutils literal notranslate"><span class="pre">max()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#min" title="min"><code class="xref py py-func docutils literal notranslate"><span class="pre">min()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#sum" title="sum"><code class="xref py py-func docutils literal notranslate"><span class="pre">sum()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#stddev" title="stddev"><code class="xref py py-func docutils literal notranslate"><span class="pre">stddev()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#stddev_pop" title="stddev_pop"><code class="xref py py-func docutils literal notranslate"><span class="pre">stddev_pop()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#stddev_samp" title="stddev_samp"><code class="xref py py-func docutils literal notranslate"><span class="pre">stddev_samp()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#variance" title="variance"><code class="xref py py-func docutils literal notranslate"><span class="pre">variance()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#var_pop" title="var_pop"><code class="xref py py-func docutils literal notranslate"><span class="pre">var_pop()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#var_samp" title="var_samp"><code class="xref py py-func docutils literal notranslate"><span class="pre">var_samp()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#covar_pop" title="covar_pop"><code class="xref py py-func docutils literal notranslate"><span class="pre">covar_pop()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#covar_samp" title="covar_samp"><code class="xref py py-func docutils literal notranslate"><span class="pre">covar_samp()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#corr" title="corr"><code class="xref py py-func docutils literal notranslate"><span class="pre">corr()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#regr_intercept" title="regr_intercept"><code class="xref py py-func docutils literal notranslate"><span class="pre">regr_intercept()</span></code></a></p></li>
+<li><p><a class="reference internal" href="../functions/aggregate.html#regr_slope" title="regr_slope"><code class="xref py py-func docutils literal notranslate"><span class="pre">regr_slope()</span></code></a></p></li>
+</ul>
+<section id="cost-based-join-pushdown">
+<h4 id="cost-based-join-pushdown">Cost-based join pushdown<a class="headerlink" href="#cost-based-join-pushdown" title="Link to this heading">#</a></h4>
+<p>The connector supports cost-based <a class="reference internal" href="../optimizer/pushdown.html#join-pushdown"><span class="std std-ref">Join pushdown</span></a> to make intelligent
+decisions about whether to push down a join operation to the data source.</p>
+<p>When cost-based join pushdown is enabled, the connector only pushes down join
+operations if the available <a class="reference internal" href="../optimizer/statistics.html"><span class="doc">Table statistics</span></a> suggest that doing so
+improves performance. Note that if no table statistics are available, join
+operation pushdown does not occur to avoid a potential decrease in query
+performance.</p>
+<p>The following table describes catalog configuration properties for
+join pushdown:</p>
+<table>
+<colgroup>
+<col style="width: 30%"/>
+<col style="width: 40%"/>
+<col style="width: 30%"/>
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Property name</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Default value</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">join-pushdown.enabled</span></code></p></td>
+<td><p>Enable <a class="reference internal" href="../optimizer/pushdown.html#join-pushdown"><span class="std std-ref">join pushdown</span></a>. Equivalent <a class="reference internal" href="../sql/set-session.html#session-properties-definition"><span class="std std-ref">catalog
+session property</span></a> is
+<code class="docutils literal notranslate"><span class="pre">join_pushdown_enabled</span></code>.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">true</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">join-pushdown.strategy</span></code></p></td>
+<td><p>Strategy used to evaluate whether join operations are pushed down. Set to
+<code class="docutils literal notranslate"><span class="pre">AUTOMATIC</span></code> to enable cost-based join pushdown, or <code class="docutils literal notranslate"><span class="pre">EAGER</span></code> to
+push down joins whenever possible. Note that <code class="docutils literal notranslate"><span class="pre">EAGER</span></code> can push down joins
+even when table statistics are unavailable, which may result in degraded
+query performance. Because of this, <code class="docutils literal notranslate"><span class="pre">EAGER</span></code> is only recommended for
+testing and troubleshooting purposes.</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">AUTOMATIC</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="predicate-pushdown-support">
+<h3 id="predicate-pushdown-support">Predicate pushdown support<a class="headerlink" href="#predicate-pushdown-support" title="Link to this heading">#</a></h3>
+<p>Predicates are pushed down for most types, including <code class="docutils literal notranslate"><span class="pre">UUID</span></code> and temporal
+types, such as <code class="docutils literal notranslate"><span class="pre">DATE</span></code>.</p>
+<p>The connector does not support pushdown of range predicates, such as <code class="docutils literal notranslate"><span class="pre">&gt;</span></code>,
+<code class="docutils literal notranslate"><span class="pre">&lt;</span></code>, or <code class="docutils literal notranslate"><span class="pre">BETWEEN</span></code>, on columns with <a class="reference internal" href="../language/types.html#string-data-types"><span class="std std-ref">character string types</span></a> like <code class="docutils literal notranslate"><span class="pre">CHAR</span></code> or <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code>. Equality predicates, such as
+<code class="docutils literal notranslate"><span class="pre">IN</span></code> or <code class="docutils literal notranslate"><span class="pre">=</span></code>, and inequality predicates, such as <code class="docutils literal notranslate"><span class="pre">!=</span></code> on columns with
+textual types are pushed down. This ensures correctness of results since the
+remote data source may sort strings differently than Trino.</p>
+<p>In the following example, the predicate of the first query is not pushed down
+since <code class="docutils literal notranslate"><span class="pre">name</span></code> is a column of type <code class="docutils literal notranslate"><span class="pre">VARCHAR</span></code> and <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> is a range predicate.
+The other queries are pushed down.</p>
+<div class="highlight-sql notranslate"><div class="highlight"><pre><span></span><span class="c1">-- Not pushed down</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">nation</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="s1">'CANADA'</span><span class="p">;</span>
+<span class="c1">-- Pushed down</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">nation</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="s1">'CANADA'</span><span class="p">;</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">nation</span><span class="w"> </span><span class="k">WHERE</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s1">'CANADA'</span><span class="p">;</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+
+
+          </article>
+        </div>
+      </div>
+    </main>
+  </div>
+  <footer class="md-footer">
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+          
+            <a href="system.html" title="System connector"
+               class="md-flex md-footer-nav__link md-footer-nav__link--prev"
+               rel="prev">
+              <div class="md-flex__cell md-flex__cell--shrink">
+                <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+              </div>
+              <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+                <span class="md-flex__ellipsis">
+                  <span
+                      class="md-footer-nav__direction"> Previous </span> System connector </span>
+              </div>
+            </a>
+          
+          
+            <a href="thrift.html" title="Thrift connector"
+               class="md-flex md-footer-nav__link md-footer-nav__link--next"
+               rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title"><span
+                class="md-flex__ellipsis"> <span
+                class="md-footer-nav__direction"> Next </span> Thrift connector </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink"><i
+                class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          
+        </a>
+        
+      </nav>
+    </div>
+    <div class="md-footer-meta md-typeset">
+      <div class="md-footer-meta__inner md-grid">
+        <div class="md-footer-copyright">
+        </div>
+      </div>
+    </div>
+  </footer>
+  <script src="../_static/javascripts/application.js"></script>
+  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
+  </body>
+</html>
