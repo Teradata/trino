@@ -1,0 +1,54 @@
+# Snyk (https://snyk.io) policy file
+# Applies to the GitHub SCM project for core/trino-web-ui/src/main/resources/webapp/package.json only.
+# Permanent ownership-based ignores; expires is intentionally omitted.
+# Do not reuse this policy for plugin/trino-teradata or a repository-wide CLI scan.
+version: v1.25.0
+ignore:
+  SNYK-JS-DOMPURIFY-20361471:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-20536984:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21460653:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21460655:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21460657:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21755399:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21755401:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
+  SNYK-JS-DOMPURIFY-21755403:
+    - '* > dompurify':
+        reason: >-
+          Upstream-owned module outside our contribution scope
+          (plugin/trino-teradata). Permanently accepted for this
+          manifest only; not a claim of non-exploitability.
